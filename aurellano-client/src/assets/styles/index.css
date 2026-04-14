@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+@theme {
+  /* Mapping your variables to Tailwind utility names */
+  --color-primary: var(--primary-color);
+  --color-secondary: var(--secondary-color);
+  --color-secondary-hover: var(--secondary-hover-color);
+  --shadow-card:
+    0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 15px 0 rgba(0, 0, 0, 0.19);
+  --color-tint: var(--tint-color);
+  --color-shade: var(--shade-color);
+  --color-neutral1: var(--neutral-color1);
+  --color-neutral2: var(--neutral-color2);
+
+  /* Mapping your font families */
+  --font-sans: "Inter", sans-serif;
+  --font-display: "IBM Plex Sans", sans-serif;
+}
+
 @layer base {
   body {
     @apply bg-zinc-100 text-zinc-900 antialiased;
@@ -8,4 +25,14 @@
   #root {
     @apply min-h-screen;
   }
+}
+
+:root {
+  --primary-color: #1f2e8a;
+  --secondary-color: #fdd92e;
+  --secondary-hover-color: #ffed93;
+  --tint-color: #5765d4;
+  --shade-color: #010e6e;
+  --neutral-color1: #fffafa;
+  --neutral-color2: #f1f0ec;
 }
