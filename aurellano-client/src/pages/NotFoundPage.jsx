@@ -2,7 +2,7 @@ import Button from "../components/Button";
 
 const NotFoundPage = () => {
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-6 bg-secondary h-screen ">
       <section className="bg-primary px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="max-w-3xl">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-secondary">
