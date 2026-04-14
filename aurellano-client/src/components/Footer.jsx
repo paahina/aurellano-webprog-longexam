@@ -1,8 +1,10 @@
+import { Link } from "react-router-dom";
+
 import logo from "../assets/img/nubdexchange_logo.png";
 
 const Footer = () => {
   return (
-    <div className="border-t-4 border-secondary bg-primary px-4 py-8 sm:px-6 lg:px-8">
+    <div className="bg-primary px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 text-zinc-50 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-4 items-center">
           <div className="w-20 h-20">
@@ -15,9 +17,10 @@ const Footer = () => {
             </p>
           </div>
         </div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">
-          Products | Cart | Pickup
-        </p>
+        <div className="flex gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">
+          <Link to="products">Products </Link>
+          <p>{" | Cart | Pickup"}</p>
+        </div>
       </div>
     </div>
   );

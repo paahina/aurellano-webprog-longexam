@@ -6,7 +6,15 @@ const variantClasses = {
   secondary:
     "bg-zinc-50 text-zinc-900 rounded-full font-semibold hover:bg-zinc-200",
   custom1:
-    "text-primary bg-secondary font-extrabold rounded-xl hover:bg-secondary-hover",
+    "text-primary bg-secondary font-bold rounded-xl hover:bg-secondary-hover",
+  custom2:
+    "text-primary bg-secondary font-bold rounded-full hover:bg-secondary-hover",
+  custom3:
+    "text-neutral1 bg-transparent font-bold rounded-full hover:bg-neutral1 hover:text-shade",
+  custom4:
+    "text-shade bg-secondary font-bold rounded-xl hover:bg-secondary-hover shadow-xs",
+  custom5:
+    "text-neutral1 bg-primary font-bold rounded-xl hover:bg-neutral1 hover:text-shade shadow-xs",
 };
 
 const Button = ({
@@ -17,7 +25,7 @@ const Button = ({
   className = "",
 }) => {
   const classes = [
-    "inline-flex items-center justify-center px-4 py-2 text-[10px] uppercase tracking-[0.24em] transition",
+    "inline-flex items-center justify-center px-4 py-2 text-[10px] uppercase tracking-[0.24em] transition cursor-pointer",
     variantClasses[variant] ?? variantClasses.secondary,
     className,
   ]
