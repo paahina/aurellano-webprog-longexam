@@ -1,0 +1,270 @@
+require("dotenv").config();
+const connectDB = require("./config/db");
+const User = require("./models/userModel");
+const Category = require("./models/categoryModel");
+const Product = require("./models/productModel");
+const Cart = require("./models/cartModel");
+const Orders = require("./models/orderModel");
+const Reviews = require("./models/reviewModel");
+
+const seed = async () => {
+  try {
+    await connectDB();
+
+    await Promise.all([
+      Reviews.collection.drop().catch(() => {}),
+      Orders.collection.drop().catch(() => {}),
+      Cart.collection.drop().catch(() => {}),
+      Product.collection.drop().catch(() => {}),
+      Category.collection.drop().catch(() => {}),
+      User.collection.drop().catch(() => {}),
+    ]);
+
+    const users = await User.create([
+      {
+        firstName: "Juan",
+        lastName: "Dela Cruz",
+        email: "jdelacruz@students.national-u.edu.ph",
+        password: "password123",
+        userRole: "customer",
+      },
+      {
+        firstName: "Maria",
+        lastName: "Santos",
+        email: "msantos@students.national-u.edu.ph",
+        password: "password123",
+        userRole: "Editor",
+      },
+      {
+        firstName: "Alex",
+        lastName: "Reyes",
+        email: "areyes@national-u.edu.ph",
+        password: "password123",
+        userRole: "Admin",
+      },
+    ]);
+
+    const categories = await Category.create([
+      {
+        categoryName: "Apparel",
+        categoryDescription:
+          "Official NU Bulldogs shirts, hoodies, and varsity wear in yellow and blue.",
+      },
+      {
+        categoryName: "Accessories",
+        categoryDescription:
+          "Campus novelty items such as plushies, tumblers, and fan gear.",
+      },
+      {
+        categoryName: "Uniforms",
+        categoryDescription:
+          "Official course uniforms and scrub tops available at Bulldogs Exchange.",
+      },
+    ]);
+
+    const [apparel, accessories, uniforms] = categories;
+
+    const products = await Product.create([
+      {
+        productName: "NU Bulldogs T-Shirt",
+        productSlug: "nu-bulldogs-t-shirt",
+        productDescription:
+          "Casual UAAP-inspired NU Bulldogs tee for students and fans.",
+        productPrice: 299,
+        productImage: "/assets/imgs/nu-shirt.jpg",
+        stockQuantity: 50,
+        stockStatus: "in_stock",
+        categoryId: apparel._id,
+      },
+      {
+        productName: "NU Hoodie",
+        productSlug: "nu-hoodie",
+        productDescription:
+          "National University Bulldog hoodie and varsity-style jackets.",
+        productPrice: 999,
+        productImage: "/assets/imgs/nu-hoodie.jpg",
+        stockQuantity: 30,
+        stockStatus: "in_stock",
+        categoryId: apparel._id,
+      },
+      {
+        productName: "Basketball Jersey",
+        productSlug: "basketball-jersey",
+        productDescription:
+          "Full sublimation NU basketball jersey with Bulldogs branding.",
+        productPrice: 319,
+        productImage: "/assets/imgs/nu-jersey.jpg",
+        stockQuantity: 40,
+        stockStatus: "in_stock",
+        categoryId: apparel._id,
+      },
+      {
+        productName: "Bulldog Plushie",
+        productSlug: "bulldog-plushie",
+        productDescription:
+          "Official NU Bulldog plushie from Bulldogs Exchange novelty items.",
+        productPrice: 349,
+        productImage: "/assets/imgs/nu-bulldog-plushie.png",
+        stockQuantity: 25,
+        stockStatus: "in_stock",
+        categoryId: accessories._id,
+      },
+      {
+        productName: "NU Tumbler",
+        productSlug: "nu-tumbler",
+        productDescription: "NU Bulldogs tumbler for campus and everyday use.",
+        productPrice: 699,
+        productImage: "/assets/imgs/nu-tumbler.jpg",
+        stockQuantity: 35,
+        stockStatus: "in_stock",
+        categoryId: accessories._id,
+      },
+      {
+        productName: "Nursing Uniform",
+        productSlug: "nursing-uniform",
+        productDescription:
+          "Official nursing scrub top with NU insignia for nursing students.",
+        productPrice: 799,
+        productImage: "/assets/imgs/nu-nursing.jpg",
+        stockQuantity: 20,
+        stockStatus: "in_stock",
+        categoryId: uniforms._id,
+      },
+    ]);
+
+    const [tshirt, hoodie, jersey, plushie, tumbler, nursing] = products;
+
+    await Cart.create([
+      {
+        userId: users[0]._id,
+        cartItems: [
+          { productId: tshirt._id, quantity: 2 },
+          { productId: plushie._id, quantity: 1 },
+        ],
+      },
+      {
+        userId: users[1]._id,
+        cartItems: [
+          { productId: hoodie._id, quantity: 1 },
+          { productId: tumbler._id, quantity: 1 },
+        ],
+      },
+      {
+        userId: users[2]._id,
+        cartItems: [{ productId: nursing._id, quantity: 1 }],
+      },
+    ]);
+
+    await Orders.create([
+      {
+        userId: users[0]._id,
+        orderItems: [
+          {
+            productId: tshirt._id,
+            productName: tshirt.productName,
+            productPrice: 299,
+            quantity: 2,
+          },
+          {
+            productId: plushie._id,
+            productName: plushie.productName,
+            productPrice: 349,
+            quantity: 1,
+          },
+        ],
+        totalAmount: 299 * 2 + 349,
+        orderStatus: "pending",
+        pickupDetails: "NU Manila Bulldogs Exchange - Main Building",
+      },
+      {
+        userId: users[1]._id,
+        orderItems: [
+          {
+            productId: hoodie._id,
+            productName: hoodie.productName,
+            productPrice: 999,
+            quantity: 1,
+          },
+          {
+            productId: tumbler._id,
+            productName: tumbler.productName,
+            productPrice: 699,
+            quantity: 1,
+          },
+        ],
+        totalAmount: 999 + 699,
+        orderStatus: "confirmed",
+        pickupDetails: "NU Manila Bulldogs Exchange - Social Hall",
+      },
+      {
+        userId: users[2]._id,
+        orderItems: [
+          {
+            productId: jersey._id,
+            productName: jersey.productName,
+            productPrice: 319,
+            quantity: 1,
+          },
+          {
+            productId: nursing._id,
+            productName: nursing.productName,
+            productPrice: 799,
+            quantity: 1,
+          },
+        ],
+        totalAmount: 319 + 799,
+        orderStatus: "delivered",
+        pickupDetails: "NU East Ortigas Bulldogs Exchange",
+      },
+    ]);
+
+    await Reviews.create([
+      {
+        userId: users[0]._id,
+        productId: tshirt._id,
+        reviewRating: 5,
+        reviewComment: "Great quality Bulldogs tee. Perfect for game day!",
+      },
+      {
+        userId: users[0]._id,
+        productId: plushie._id,
+        reviewRating: 4,
+        reviewComment: "Cute NU mascot plushie from Bulldogs Exchange.",
+      },
+      {
+        userId: users[1]._id,
+        productId: hoodie._id,
+        reviewRating: 5,
+        reviewComment: "Warm and stylish. Love the yellow and blue details.",
+      },
+      {
+        userId: users[1]._id,
+        productId: tumbler._id,
+        reviewRating: 4,
+        reviewComment: "Solid tumbler for campus use.",
+      },
+      {
+        userId: users[2]._id,
+        productId: nursing._id,
+        reviewRating: 5,
+        reviewComment: "Official nursing uniform fits well and looks sharp.",
+      },
+    ]);
+
+    console.log("Seed completed successfully");
+    console.log({
+      users: users.length,
+      categories: categories.length,
+      products: products.length,
+      carts: 3,
+      orders: 3,
+      reviews: 5,
+    });
+    process.exit(0);
+  } catch (error) {
+    console.error("Seed failed:", error.message);
+    process.exit(1);
+  }
+};
+
+seed();
