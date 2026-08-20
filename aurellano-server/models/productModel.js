@@ -12,6 +12,11 @@ const productSchema = new mongoose.Schema(
       required: true,
     },
     productImage: { type: String, required: true },
+    supplierId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Supplier",
+      required: true,
+    },
     stockQuantity: { type: Number, required: true, min: 0, default: 0 },
     stockStatus: { type: String, required: true, default: "in_stock", trim: true },
   },
@@ -20,6 +25,7 @@ const productSchema = new mongoose.Schema(
 
 productSchema.index({ productName: 1 });
 productSchema.index({ categoryId: 1 });
+productSchema.index({ supplierId: 1 });
 productSchema.index({ stockStatus: 1 });
 productSchema.index({ productPrice: 1 });
 

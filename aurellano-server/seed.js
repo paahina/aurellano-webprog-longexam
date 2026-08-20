@@ -2,6 +2,7 @@ require("dotenv").config();
 const connectDB = require("./config/db");
 const User = require("./models/userModel");
 const Category = require("./models/categoryModel");
+const Supplier = require("./models/supplierModel");
 const Product = require("./models/productModel");
 const Cart = require("./models/cartModel");
 const Orders = require("./models/orderModel");
@@ -17,6 +18,7 @@ const seed = async () => {
       Cart.collection.drop().catch(() => {}),
       Product.collection.drop().catch(() => {}),
       Category.collection.drop().catch(() => {}),
+      Supplier.collection.drop().catch(() => {}),
       User.collection.drop().catch(() => {}),
     ]);
 
@@ -64,6 +66,21 @@ const seed = async () => {
 
     const [apparel, accessories, uniforms] = categories;
 
+    const suppliers = await Supplier.create([
+      {
+        supplierName: "Nike",
+        supplierDescription:
+          "Official athletic apparel partner for NU Bulldogs shirts, hoodies, and uniforms.",
+      },
+      {
+        supplierName: "Official NU",
+        supplierDescription:
+          "Campus store supplier for Bulldogs Exchange novelty items and accessories.",
+      },
+    ]);
+
+    const [nike, officialNu] = suppliers;
+
     const products = await Product.create([
       {
         productName: "NU Bulldogs T-Shirt",
@@ -74,6 +91,7 @@ const seed = async () => {
         productImage: "/assets/imgs/nu-shirt.jpg",
         stockQuantity: 50,
         stockStatus: "in_stock",
+        supplierId: nike._id,
         categoryId: apparel._id,
       },
       {
@@ -85,6 +103,7 @@ const seed = async () => {
         productImage: "/assets/imgs/nu-hoodie.jpg",
         stockQuantity: 30,
         stockStatus: "in_stock",
+        supplierId: nike._id,
         categoryId: apparel._id,
       },
       {
@@ -96,6 +115,7 @@ const seed = async () => {
         productImage: "/assets/imgs/nu-jersey.jpg",
         stockQuantity: 40,
         stockStatus: "in_stock",
+        supplierId: nike._id,
         categoryId: apparel._id,
       },
       {
@@ -107,6 +127,7 @@ const seed = async () => {
         productImage: "/assets/imgs/nu-bulldog-plushie.png",
         stockQuantity: 25,
         stockStatus: "in_stock",
+        supplierId: officialNu._id,
         categoryId: accessories._id,
       },
       {
@@ -117,6 +138,7 @@ const seed = async () => {
         productImage: "/assets/imgs/nu-tumbler.jpg",
         stockQuantity: 35,
         stockStatus: "in_stock",
+        supplierId: officialNu._id,
         categoryId: accessories._id,
       },
       {
@@ -128,6 +150,7 @@ const seed = async () => {
         productImage: "/assets/imgs/nu-nursing.jpg",
         stockQuantity: 20,
         stockStatus: "in_stock",
+        supplierId: nike._id,
         categoryId: uniforms._id,
       },
     ]);
@@ -255,6 +278,7 @@ const seed = async () => {
     console.log({
       users: users.length,
       categories: categories.length,
+      suppliers: suppliers.length,
       products: products.length,
       carts: 3,
       orders: 3,
