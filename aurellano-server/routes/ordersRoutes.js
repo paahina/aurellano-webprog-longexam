@@ -6,8 +6,11 @@ const {
   updateOrder,
   deleteOrder,
 } = require("../controllers/ordersController");
+const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
+
+router.use(protect, authorize("customer", "Admin"));
 
 router.get("/getAllOrders", getOrders);
 router.get("/get/:id", getOrderById);

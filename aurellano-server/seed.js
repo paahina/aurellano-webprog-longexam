@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("./config/config");
 const connectDB = require("./config/db");
 const User = require("./models/userModel");
 const Category = require("./models/categoryModel");
@@ -29,13 +29,15 @@ const seed = async () => {
         email: "jdelacruz@students.national-u.edu.ph",
         password: "password123",
         userRole: "customer",
+        isActive: true,
       },
       {
         firstName: "Maria",
         lastName: "Santos",
         email: "msantos@students.national-u.edu.ph",
         password: "password123",
-        userRole: "Editor",
+        userRole: "customer",
+        isActive: true,
       },
       {
         firstName: "Alex",
@@ -43,6 +45,7 @@ const seed = async () => {
         email: "areyes@national-u.edu.ph",
         password: "password123",
         userRole: "Admin",
+        isActive: true,
       },
     ]);
 

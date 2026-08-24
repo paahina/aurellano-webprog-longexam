@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("./config/config");
 const connectDB = require("./config/db");
 const Supplier = require("./models/supplierModel");
 const Product = require("./models/productModel");

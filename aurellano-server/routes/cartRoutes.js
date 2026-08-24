@@ -6,8 +6,11 @@ const {
   updateCart,
   deleteCart,
 } = require("../controllers/cartController");
+const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
+
+router.use(protect, authorize("customer", "Admin"));
 
 router.get("/getAllCarts", getCarts);
 router.get("/get/:id", getCartById);

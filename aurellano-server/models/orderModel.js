@@ -24,6 +24,7 @@ const ordersSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "confirmed", "delivered", "cancelled"],
       default: "pending",
+      // confirmed = ready for claiming
     },
     pickupDetails: { type: String, trim: true },
   },

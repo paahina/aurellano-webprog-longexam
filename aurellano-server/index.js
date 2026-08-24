@@ -1,6 +1,6 @@
-require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const { PORT } = require("./config/config");
 const connectDB = require("./config/db");
 
 const userRoutes = require("./routes/userRoutes");
@@ -44,8 +44,6 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: "Server Error" });
 });
-
-const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   await connectDB();
