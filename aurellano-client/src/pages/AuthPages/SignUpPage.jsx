@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
 
@@ -32,7 +33,10 @@ const SignUpPage = () => {
     setSaving(true);
     try {
       await signup(form);
-      navigate("/shop", { replace: true });
+      navigate("/auth/signin", {
+        replace: true,
+        state: { message: "Account created. Please sign in." },
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -42,6 +46,12 @@ const SignUpPage = () => {
 
   return (
     <>
+      <Button to="/" variant="custom3" className="mb-6 px-0">
+        <span className="inline-flex items-center gap-2 text-sm normal-case tracking-normal">
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
+          Back to home
+        </span>
+      </Button>
       <h1 className="text-3xl font-bold tracking-tight text-secondary sm:text-4xl">
         Support NU Bulldog Exchange
       </h1>

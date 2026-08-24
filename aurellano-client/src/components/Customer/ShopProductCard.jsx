@@ -3,11 +3,19 @@ import { Check, Plus, ShoppingCart, Star } from "lucide-react";
 import ProductImage from "../ProductImage";
 import { formatPeso } from "../../utils/format";
 
-const ShopProductCard = ({ product, rating = 0, reviewCount = 0, justAdded = false, onAddToCart }) => {
+const ShopProductCard = ({
+  product,
+  rating = 0,
+  reviewCount = 0,
+  justAdded = false,
+  onAddToCart,
+}) => {
+  const outOfStock = (product.stockQuantity ?? 0) <= 0;
+
   return (
     <Link
       to={`/shop/${product.productSlug}`}
-      className="block rounded-3xl bg-zinc-100 p-4 shadow-[5px_5px_15px_rgba(0,0,0,0.3)] transition hover:bg-zinc-50"
+      className="block rounded-3xl border border-zinc-200 bg-zinc-100 p-4 transition hover:bg-zinc-50"
     >
       <div className="overflow-hidden rounded-[1.25rem] bg-zinc-200">
         <ProductImage
@@ -33,15 +41,20 @@ const ShopProductCard = ({ product, rating = 0, reviewCount = 0, justAdded = fal
         <button
           type="button"
           onClick={(event) => onAddToCart?.(event, product._id)}
-          title="Add to cart"
+          title={outOfStock ? "Out of stock" : "Add to cart"}
           aria-label={`Add ${product.productName} to cart`}
-          className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-secondary transition hover:bg-shade"
+          disabled={outOfStock}
+          className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-secondary transition hover:bg-shade disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ShoppingCart className="h-5 w-5" strokeWidth={2} />
           <span className="absolute -right-0.5 -bottom-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-secondary text-shade">
             <Plus className="h-3 w-3" strokeWidth={3} />
           </span>
         </button>
+
+        {outOfStock ? (
+          <span className="text-xs font-semibold text-red-700">Out of stock</span>
+        ) : null}
 
         <span
           className={[

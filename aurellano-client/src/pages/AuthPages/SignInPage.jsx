@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
 
@@ -19,6 +20,7 @@ const SignInPage = () => {
     rememberMe: false,
   });
   const [error, setError] = useState("");
+  const [message] = useState(location.state?.message || "");
   const [saving, setSaving] = useState(false);
 
   const onChange = (event) => {
@@ -44,6 +46,12 @@ const SignInPage = () => {
 
   return (
     <>
+      <Button to="/" variant="custom3" className="mb-6 px-0">
+        <span className="inline-flex items-center gap-2 text-sm normal-case tracking-normal">
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
+          Back to home
+        </span>
+      </Button>
       <h1 className="text-3xl font-bold tracking-tight text-secondary sm:text-4xl">
         Welcome Back!
       </h1>
@@ -51,6 +59,7 @@ const SignInPage = () => {
         Access your store account to review orders, saved items, and pickup
         details.
       </p>
+      {message ? <p className="mt-4 text-sm text-green-300">{message}</p> : null}
       {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
 
       <form className="mt-8 space-y-5" onSubmit={onSubmit}>

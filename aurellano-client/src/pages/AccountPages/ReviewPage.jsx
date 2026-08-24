@@ -76,6 +76,8 @@ const ReviewPage = () => {
             key: `${order._id}-${productId}-${index}`,
             productId,
             productName: item.productName || item.productId?.productName || "Product",
+            productImage: item.productImage || item.productId?.productImage || "",
+            productSlug: item.productSlug || item.productId?.productSlug || "",
             orderedAt: order.orderedAt,
           });
         });

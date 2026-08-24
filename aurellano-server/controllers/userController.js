@@ -4,6 +4,7 @@ const { generateToken } = require("../utils/jwt");
 const { JWT_EXPIRES_IN } = require("../config/config");
 const { blacklistToken } = require("../middleware/tokenBlacklist");
 const { isAdmin, forbidIfNotOwner } = require("../middleware/authMiddleware");
+const { buildUserSort } = require("../utils/listSort");
 
 const toPublicUser = (user) => {
   const userObj = user.toObject();
@@ -13,7 +14,8 @@ const toPublicUser = (user) => {
 
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    const sortOption = buildUserSort(req.query.sort);
+    const users = await User.find().select("-password").sort(sortOption);
     res.status(HttpStatus.OK).json(users);
   } catch (error) {
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message });
@@ -135,7 +137,9 @@ const updateUser = async (req, res) => {
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (email !== undefined) user.email = email;
-    if (isAdmin(req) && userRole !== undefined) user.userRole = userRole;
+    if (isAdmin(req) && userRole !== undefined && user.userRole !== "Admin") {
+      user.userRole = userRole;
+    }
 
     if (isActive !== undefined) {
       if (!isAdmin(req)) {

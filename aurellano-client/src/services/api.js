@@ -49,12 +49,24 @@ export const updateUserRequest = (id, payload, token) =>
   apiRequest(`/api/users/update/${id}`, { method: "PUT", body: payload, token });
 
 export const getProductsRequest = async (query = {}) => {
-  const data = await apiRequest(withQuery("/api/products/getAllProducts", { limit: 100, ...query }));
-  return data.data || [];
+  const data = await apiRequest(withQuery("/api/products/v1", query));
+  return {
+    products: data.data || [],
+    total: data.total ?? (data.data || []).length,
+    totalPages: data.totalPages ?? 1,
+    page: data.page ?? 1,
+    limit: data.limit ?? 10,
+  };
 };
 
 export const getProductRequest = async (id) => {
-  const data = await apiRequest(`/api/products/get/${id}`);
+  const data = await apiRequest(`/api/products/v1/${id}`);
+  const list = data.data || [];
+  return list[0] || null;
+};
+
+export const getProductBySlugRequest = async (slug) => {
+  const data = await apiRequest(`/api/products/v1/slug/${encodeURIComponent(slug)}`);
   const list = data.data || [];
   return list[0] || null;
 };
@@ -121,8 +133,11 @@ export const saveCartItemsRequest = async (token, items) => {
   return result;
 };
 
-export const getUsersRequest = (token) =>
-  apiRequest("/api/users/getAllUsers", { token });
+export const getUsersRequest = (token, query = {}) =>
+  apiRequest(withQuery("/api/users/getAllUsers", query), { token });
+
+export const deleteUserRequest = (id, token) =>
+  apiRequest(`/api/users/delete/${id}`, { method: "DELETE", token });
 
 export const getOrdersRequest = (token, query = {}) =>
   apiRequest(withQuery("/api/orders/getAllOrders", query), { token });
@@ -132,3 +147,24 @@ export const createOrderRequest = (payload, token) =>
 
 export const updateOrderRequest = (id, payload, token) =>
   apiRequest(`/api/orders/update/${id}`, { method: "PUT", body: payload, token });
+
+export const deleteOrderRequest = (id, token) =>
+  apiRequest(`/api/orders/delete/${id}`, { method: "DELETE", token });
+
+export const createProductRequest = (payload, token) =>
+  apiRequest("/api/products/create", { method: "POST", body: payload, token });
+
+export const updateProductRequest = (id, payload, token) =>
+  apiRequest(`/api/products/update/${id}`, { method: "PUT", body: payload, token });
+
+export const deleteProductRequest = (id, token) =>
+  apiRequest(`/api/products/delete/${id}`, { method: "DELETE", token });
+
+export const updateReviewRequest = (id, payload, token) =>
+  apiRequest(`/api/reviews/update/${id}`, { method: "PUT", body: payload, token });
+
+export const deleteReviewRequest = (id, token) =>
+  apiRequest(`/api/reviews/delete/${id}`, { method: "DELETE", token });
+
+export const getSuppliersRequest = () =>
+  apiRequest("/api/suppliers/getAllSuppliers");

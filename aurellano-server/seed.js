@@ -160,6 +160,15 @@ const seed = async () => {
 
     const [tshirt, hoodie, jersey, plushie, tumbler, nursing] = products;
 
+    const orderItem = (product, quantity, productPrice = product.productPrice) => ({
+      productId: product._id,
+      productName: product.productName,
+      productPrice,
+      quantity,
+      productImage: product.productImage || "",
+      productSlug: product.productSlug || "",
+    });
+
     await Cart.create([
       {
         userId: users[0]._id,
@@ -185,18 +194,8 @@ const seed = async () => {
       {
         userId: users[0]._id,
         orderItems: [
-          {
-            productId: tshirt._id,
-            productName: tshirt.productName,
-            productPrice: 299,
-            quantity: 2,
-          },
-          {
-            productId: plushie._id,
-            productName: plushie.productName,
-            productPrice: 349,
-            quantity: 1,
-          },
+          orderItem(tshirt, 2),
+          orderItem(plushie, 1),
         ],
         totalAmount: 299 * 2 + 349,
         orderStatus: "pending",
@@ -205,18 +204,8 @@ const seed = async () => {
       {
         userId: users[1]._id,
         orderItems: [
-          {
-            productId: hoodie._id,
-            productName: hoodie.productName,
-            productPrice: 999,
-            quantity: 1,
-          },
-          {
-            productId: tumbler._id,
-            productName: tumbler.productName,
-            productPrice: 699,
-            quantity: 1,
-          },
+          orderItem(hoodie, 1),
+          orderItem(tumbler, 1),
         ],
         totalAmount: 999 + 699,
         orderStatus: "confirmed",
@@ -225,18 +214,8 @@ const seed = async () => {
       {
         userId: users[2]._id,
         orderItems: [
-          {
-            productId: jersey._id,
-            productName: jersey.productName,
-            productPrice: 319,
-            quantity: 1,
-          },
-          {
-            productId: nursing._id,
-            productName: nursing.productName,
-            productPrice: 799,
-            quantity: 1,
-          },
+          orderItem(jersey, 1),
+          orderItem(nursing, 1),
         ],
         totalAmount: 319 + 799,
         orderStatus: "delivered",

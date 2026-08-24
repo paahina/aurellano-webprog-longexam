@@ -17,6 +17,8 @@ const ordersSchema = new mongoose.Schema(
         productName: { type: String, required: true, trim: true },
         productPrice: { type: Number, required: true, min: 0 },
         quantity: { type: Number, required: true, min: 1 },
+        productImage: { type: String, default: "", trim: true },
+        productSlug: { type: String, default: "", trim: true },
       },
     ],
     totalAmount: { type: Number, required: true, min: 0 },
@@ -24,7 +26,6 @@ const ordersSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "confirmed", "delivered", "cancelled"],
       default: "pending",
-      // confirmed = ready for claiming
     },
     pickupDetails: { type: String, trim: true },
   },

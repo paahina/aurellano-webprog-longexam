@@ -15,6 +15,8 @@ const variantClasses = {
     "text-shade bg-secondary font-bold rounded-xl hover:bg-secondary-hover shadow-xs",
   custom5:
     "text-neutral1 bg-primary font-bold rounded-xl hover:bg-neutral1 hover:text-shade shadow-xs",
+  danger:
+    "text-white bg-red-600 font-bold rounded-xl hover:bg-red-700 shadow-xs",
 };
 
 const Button = ({

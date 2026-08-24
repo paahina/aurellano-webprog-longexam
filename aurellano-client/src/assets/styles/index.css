@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 @theme {
-  /* Mapping your variables to Tailwind utility names */
   --color-primary: var(--primary-color);
   --color-secondary: var(--secondary-color);
   --color-secondary-hover: var(--secondary-hover-color);
@@ -12,7 +11,6 @@
   --color-neutral1: var(--neutral-color1);
   --color-neutral2: var(--neutral-color2);
 
-  /* Mapping your font families */
   --font-sans: "Inter", sans-serif;
   --font-display: "IBM Plex Sans", sans-serif;
 }

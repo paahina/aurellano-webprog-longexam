@@ -11,7 +11,7 @@ const productSchema = new mongoose.Schema(
       ref: "Category",
       required: true,
     },
-    productImage: { type: String, required: true },
+    productImage: { type: String, default: "", trim: true },
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Supplier",

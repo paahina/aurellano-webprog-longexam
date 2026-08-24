@@ -1,6 +1,7 @@
 const Cart = require("../models/cartModel");
 const { HttpStatus } = require("../config/constants");
 const { isAdmin, forbidIfNotOwner, ownerFilter } = require("../middleware/authMiddleware");
+const { validateCartItems } = require("../utils/stock");
 
 const cartPopulate = (query) =>
   query
@@ -32,6 +33,9 @@ const getCartById = async (req, res) => {
 
 const createCart = async (req, res) => {
   try {
+    if (req.body.cartItems?.length) {
+      await validateCartItems(req.body.cartItems);
+    }
     const payload = { ...req.body, userId: isAdmin(req) && req.body.userId ? req.body.userId : req.user.id };
     const cart = await Cart.create(payload);
     res.status(HttpStatus.CREATED).json(cart);
@@ -48,6 +52,10 @@ const updateCart = async (req, res) => {
 
     const payload = { ...req.body };
     if (!isAdmin(req)) delete payload.userId;
+
+    if (payload.cartItems?.length) {
+      await validateCartItems(payload.cartItems);
+    }
 
     const updated = await cartPopulate(
       Cart.findByIdAndUpdate(req.params.id, payload, { new: true, runValidators: true })

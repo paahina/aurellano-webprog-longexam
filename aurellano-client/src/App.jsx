@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
 import Layout from "./layouts/Layout";
 import CustomerLayout from "./layouts/CustomerLayout";
 import AuthLayout from "./layouts/AuthLayout";
+import AdminLayout from "./layouts/AdminLayout";
 
 import ProductPage from "./pages/LandingPages/ProductPage";
 import HomePage from "./pages/LandingPages/HomePage";
@@ -19,7 +20,12 @@ import CartPage from "./pages/AccountPages/CartPage";
 import OrdersPage from "./pages/AccountPages/OrdersPage";
 import ReviewPage from "./pages/AccountPages/ReviewPage";
 import ProfilePage from "./pages/AccountPages/ProfilePage";
+
 import OverviewPage from "./pages/AdminPages/OverviewPage";
+import AdminProductsPage from "./pages/AdminPages/ProductsPage";
+import AdminOrdersPage from "./pages/AdminPages/OrdersPage";
+import AdminReviewsPage from "./pages/AdminPages/ReviewsPage";
+import AdminUsersPage from "./pages/AdminPages/UsersPage";
 
 import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -79,7 +85,19 @@ const routes = [
   {
     element: <ProtectedRoute roles={["Admin"]} />,
     errorElement: <NotFoundPage />,
-    children: [{ path: "admin", element: <OverviewPage /> }],
+    children: [
+      {
+        path: "admin",
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <OverviewPage /> },
+          { path: "products", element: <AdminProductsPage /> },
+          { path: "orders", element: <AdminOrdersPage /> },
+          { path: "reviews", element: <AdminReviewsPage /> },
+          { path: "users", element: <AdminUsersPage /> },
+        ],
+      },
+    ],
   },
 ];
 

@@ -15,7 +15,7 @@ const ProductListPage = () => {
       setLoadError("");
       setProducts([]);
       try {
-        const list = await getProductsRequest({ limit: 100, sort: "name" });
+        const { products: list } = await getProductsRequest({ limit: 100, sort: "name" });
         if (!cancelled) setProducts(list);
       } catch (err) {
         if (!cancelled) {

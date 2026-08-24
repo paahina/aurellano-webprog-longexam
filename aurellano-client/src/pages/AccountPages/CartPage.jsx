@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ShoppingCart } from "lucide-react";
 import Button from "../../components/Button";
 import CartItemCard from "../../components/Customer/CartItemCard";
@@ -7,6 +7,7 @@ import ListSkeleton from "../../components/Customer/ListSkeleton";
 import { useAuth } from "../../context/AuthContext";
 import { createOrderRequest, getCartsRequest, saveCartItemsRequest } from "../../services/api";
 import { formatPeso, getId } from "../../utils/format";
+import { getCartItemStockIssue } from "../../utils/stock";
 
 const toLoadMessage = (err) => {
   const raw = err?.message || "";
@@ -52,16 +53,22 @@ const CartPage = () => {
     };
   }, [token]);
 
+  const hasBlockedItems = useMemo(
+    () => items.some((item) => getCartItemStockIssue(item).blocked),
+    [items]
+  );
+
   const persist = async (nextItems) => {
     const previous = items;
     setItems(nextItems);
     setError("");
     try {
       await saveCartItemsRequest(token, nextItems);
+      return true;
     } catch (err) {
       setItems(previous);
       setError(err.message);
-      throw err;
+      return false;
     }
   };
 
@@ -71,19 +78,11 @@ const CartPage = () => {
         getId(item.productId) === productId ? { ...item, quantity } : item
       )
       .filter((item) => item.quantity > 0);
-    try {
-      await persist(next);
-    } catch {
-      // Error already shown; items restored in persist.
-    }
+    await persist(next);
   };
 
   const removeItem = async (productId) => {
-    try {
-      await persist(items.filter((item) => getId(item.productId) !== productId));
-    } catch {
-      // Error already shown; items restored in persist.
-    }
+    await persist(items.filter((item) => getId(item.productId) !== productId));
   };
 
   const checkout = async (event) => {
@@ -92,6 +91,10 @@ const CartPage = () => {
     setError("");
     if (!items.length) {
       setError("Your cart is empty.");
+      return;
+    }
+    if (hasBlockedItems) {
+      setError("Remove out-of-stock items or adjust quantities before placing your order.");
       return;
     }
     try {
@@ -106,8 +109,9 @@ const CartPage = () => {
         0
       );
       await createOrderRequest({ orderItems, totalAmount, pickupDetails }, token);
-      await persist([]);
-      setMessage("Order placed. Track it in the Orders tab.");
+      if (await persist([])) {
+        setMessage("Order placed. Track it in the Orders tab.");
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -155,6 +159,13 @@ const CartPage = () => {
             })}
           </div>
 
+          {hasBlockedItems ? (
+            <p className="mt-4 text-sm text-red-700">
+              Some items are out of stock or exceed available quantity. Remove them or wait for
+              restock before placing your order.
+            </p>
+          ) : null}
+
           <form onSubmit={checkout} className="mt-6 space-y-4">
             <p className="text-lg font-bold">Total: {formatPeso(total)}</p>
             <label className="block text-sm">
@@ -165,7 +176,7 @@ const CartPage = () => {
                 className="mt-2 w-full rounded-xl border border-zinc-300 px-4 py-3"
               />
             </label>
-            <Button type="submit" variant="custom2">
+            <Button type="submit" variant="custom2" disabled={hasBlockedItems}>
               Place order
             </Button>
           </form>

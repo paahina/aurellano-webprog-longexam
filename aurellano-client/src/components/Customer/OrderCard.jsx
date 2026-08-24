@@ -1,5 +1,6 @@
 import Button from "../Button";
 import ActivityCard from "./ActivityCard";
+import OrderItemColumn from "./OrderItemColumn";
 import { formatDate, formatPeso } from "../../utils/format";
 
 const statusLabel = {
@@ -18,13 +19,16 @@ const OrderCard = ({ order, onCancel }) => {
         </p>
         <p className="text-sm text-zinc-500">{formatDate(order.orderedAt)}</p>
       </div>
-      <ul className="mt-3 space-y-1 text-sm text-zinc-700">
-        {order.orderItems?.map((item) => (
-          <li key={`${order._id}-${item.productId}`}>
-            {item.productName} × {item.quantity} · {formatPeso(item.productPrice)}
-          </li>
+
+      <div className="mt-3 flex gap-4 overflow-x-auto pb-1">
+        {order.orderItems?.map((item, index) => (
+          <OrderItemColumn
+            key={`${order._id}-${item.productId}-${index}`}
+            item={item}
+          />
         ))}
-      </ul>
+      </div>
+
       <p className="mt-3 font-bold">Total: {formatPeso(order.totalAmount)}</p>
       {order.pickupDetails ? (
         <p className="mt-1 text-sm text-zinc-600">Pickup: {order.pickupDetails}</p>

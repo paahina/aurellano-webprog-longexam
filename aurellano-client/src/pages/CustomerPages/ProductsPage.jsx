@@ -10,6 +10,7 @@ import {
 import ListEmptyState from "../../components/Customer/ListEmptyState";
 import ListSkeleton from "../../components/Customer/ListSkeleton";
 import ShopProductCard from "../../components/Customer/ShopProductCard";
+import { PRODUCT_SORT_OPTIONS, productSortToQuery } from "../../components/Admin/AdminTableToolbar";
 import { useAuth } from "../../context/AuthContext";
 import { addToCartRequest, getCategoriesRequest, getProductsRequest, getReviewsRequest } from "../../services/api";
 import { averageRating, getId } from "../../utils/format";
@@ -27,9 +28,11 @@ const ProductsPage = () => {
 
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [cartError, setCartError] = useState("");
   const [addedIds, setAddedIds] = useState({});
   const addedTimers = useRef({});
 
@@ -40,23 +43,28 @@ const ProductsPage = () => {
       setLoadError("");
       setProducts([]);
       try {
-        const query = { limit: 100, search };
+        const query = {
+          page,
+          limit: PAGE_SIZE,
+          search,
+        };
         if (category) query.category = category;
-        if (sort === "az") query.sort = "name";
-        if (sort === "za") query.sort = "-name";
+        query.sort = productSortToQuery(sort);
 
-        const [productList, categoryList, reviewList] = await Promise.all([
+        const [productResult, categoryList, reviewList] = await Promise.all([
           getProductsRequest(query),
           getCategoriesRequest(),
           getReviewsRequest(),
         ]);
         if (cancelled) return;
-        setProducts(productList);
+        setProducts(productResult.products);
+        setTotalPages(productResult.totalPages);
         setCategories(categoryList);
         setReviews(reviewList);
       } catch (err) {
         if (!cancelled) {
           setProducts([]);
+          setTotalPages(1);
           const raw = err.message || "";
           setLoadError(
             !raw || raw === "Failed to fetch"
@@ -72,13 +80,21 @@ const ProductsPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [search, category, sort]);
+  }, [search, category, sort, page]);
 
   useEffect(() => {
     return () => {
       Object.values(addedTimers.current).forEach((timerId) => clearTimeout(timerId));
     };
   }, []);
+
+  useEffect(() => {
+    if (loading || page <= totalPages) return;
+    const next = new URLSearchParams(searchParams);
+    if (totalPages <= 1) next.delete("page");
+    else next.set("page", String(totalPages));
+    setSearchParams(next, { replace: true });
+  }, [loading, page, totalPages, searchParams, setSearchParams]);
 
   const reviewsByProduct = useMemo(() => {
     const map = {};
@@ -90,21 +106,7 @@ const ProductsPage = () => {
     return map;
   }, [reviews]);
 
-  const visibleProducts = useMemo(() => {
-    if (sort !== "rating") return products;
-    return [...products].sort((a, b) => {
-      const ratingA = averageRating(reviewsByProduct[a._id] || []);
-      const ratingB = averageRating(reviewsByProduct[b._id] || []);
-      return ratingB - ratingA;
-    });
-  }, [products, reviewsByProduct, sort]);
-
-  const totalPages = Math.max(1, Math.ceil(visibleProducts.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedProducts = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return visibleProducts.slice(start, start + PAGE_SIZE);
-  }, [visibleProducts, currentPage]);
 
   const updateParam = (key, value) => {
     const next = new URLSearchParams(searchParams);
@@ -140,11 +142,12 @@ const ProductsPage = () => {
   const addToCart = async (event, productId) => {
     event.preventDefault();
     event.stopPropagation();
+    setCartError("");
     try {
       await addToCartRequest(token, productId, 1);
       showAddedCheck(productId);
-    } catch {
-      // Keep feedback on-card only; failed adds simply show no check.
+    } catch (err) {
+      setCartError(err.message || "Could not add this product to your cart.");
     }
   };
 
@@ -199,18 +202,22 @@ const ProductsPage = () => {
               onChange={(event) => updateParam("sort", event.target.value)}
               className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm"
             >
-              <option value="rating">Rating</option>
-              <option value="az">A-Z</option>
-              <option value="za">Z-A</option>
+              {PRODUCT_SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
         </div>
+
+        {cartError ? <p className="text-sm text-red-700">{cartError}</p> : null}
 
         {loading ? (
           <ListSkeleton variant="shop" count={PAGE_SIZE} label="Loading products" />
         ) : null}
 
-        {!loading && (loadError || !visibleProducts.length) ? (
+        {!loading && (loadError || !products.length) ? (
           <ListEmptyState
             icon={ShoppingCart}
             title="No Product found"
@@ -219,9 +226,9 @@ const ProductsPage = () => {
           />
         ) : null}
 
-        {!loading && !loadError && visibleProducts.length ? (
+        {!loading && !loadError && products.length ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {pagedProducts.map((product) => {
+            {products.map((product) => {
               const productReviews = reviewsByProduct[product._id] || [];
               return (
                 <ShopProductCard
@@ -237,7 +244,7 @@ const ProductsPage = () => {
           </div>
         ) : null}
 
-        {!loading && !loadError && visibleProducts.length > PAGE_SIZE ? (
+        {!loading && !loadError && totalPages > 1 ? (
           <nav
             className="mt-8 flex flex-wrap items-center justify-center gap-2"
             aria-label="Product pagination"

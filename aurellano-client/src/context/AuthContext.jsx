@@ -95,21 +95,15 @@ export const AuthProvider = ({ children }) => {
     [applySession]
   );
 
-  const signup = useCallback(
-    async (payload) => {
-      const data = await signupRequest(payload);
-      applySession(data.token, data.user, true);
-      return data.user;
-    },
-    [applySession]
-  );
+  const signup = useCallback(async (payload) => {
+    const data = await signupRequest(payload);
+    return data.user || data;
+  }, []);
 
   const logout = useCallback(async () => {
     try {
       if (token) await logoutRequest(token);
-    } catch {
-      // Clear local session even if the server already rejected the token.
-    }
+    } catch {}
     clearAuth();
   }, [token, clearAuth]);
 
@@ -129,8 +123,6 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Hook export is fine; Fast Refresh only prefers component-only files.
-// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

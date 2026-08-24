@@ -1,65 +1,74 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
-import { getOrdersRequest, getProductsRequest, getReviewsRequest, getUsersRequest } from "../../services/api";
+import {
+  getOrdersRequest,
+  getProductsRequest,
+  getReviewsRequest,
+  getUsersRequest,
+} from "../../services/api";
 
 const OverviewPage = () => {
-  const { token, user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { token, user } = useAuth();
   const [counts, setCounts] = useState({
     products: 0,
     pendingOrders: 0,
     reviews: 0,
     users: 0,
   });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
+      setLoading(true);
+      setError("");
       try {
-        const [products, orders, reviews, users] = await Promise.all([
+        const [productResult, orders, reviews, users] = await Promise.all([
           getProductsRequest({ limit: 100 }),
           getOrdersRequest(token, { status: "pending" }),
           getReviewsRequest(),
           getUsersRequest(token),
         ]);
+        if (cancelled) return;
         setCounts({
-          products: products.length,
+          products: productResult.total,
           pendingOrders: orders.length,
           reviews: reviews.length,
           users: users.length,
         });
       } catch (err) {
-        setError(err.message);
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
-  const onLogout = async () => {
-    await logout();
-    navigate("/");
-  };
-
   return (
-    <div className="min-h-screen bg-secondary">
-      <header className="bg-primary px-4 py-4 text-neutral1">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <p className="font-bold text-secondary">Admin overview</p>
-          <Button type="button" variant="custom2" onClick={onLogout}>
-            Log out
-          </Button>
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
+        Dashboard
+      </p>
+      <h1 className="mt-2 text-3xl font-bold text-primary">
+        Welcome, {user?.firstName}
+      </h1>
+      <p className="mt-2 text-sm text-zinc-600">
+        Overview of BulldogExchange store activity.
+      </p>
+      {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
+
+      {loading ? (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="h-28 animate-pulse rounded-3xl bg-white" />
+          ))}
         </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="text-3xl font-bold text-primary">
-          Welcome, {user.firstName}
-        </h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          Admin table pages for products, orders, reviews, and users come next.
-        </p>
-        {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
+      ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Products", counts.products],
@@ -67,15 +76,15 @@ const OverviewPage = () => {
             ["Reviews", counts.reviews],
             ["Users", counts.users],
           ].map(([label, value]) => (
-            <article key={label} className="rounded-3xl bg-white p-5">
-              <p className="text-2xl font-bold text-primary">{value}</p>
+            <article key={label} className="rounded-3xl bg-white p-5 shadow-sm">
+              <p className="text-3xl font-bold text-primary">{value}</p>
               <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">
                 {label}
               </p>
             </article>
           ))}
         </div>
-      </main>
+      )}
     </div>
   );
 };

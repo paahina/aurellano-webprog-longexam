@@ -5,7 +5,7 @@ import Button from "../../components/Button";
 import ProductDetailSkeleton from "../../components/Customer/ProductDetailSkeleton";
 import ProductImage from "../../components/ProductImage";
 import { useAuth } from "../../context/AuthContext";
-import { addToCartRequest, getProductsRequest, getReviewsRequest } from "../../services/api";
+import { addToCartRequest, getProductBySlugRequest, getReviewsRequest } from "../../services/api";
 import { averageRating, formatPeso } from "../../utils/format";
 
 const ProductDetailPage = () => {
@@ -24,8 +24,7 @@ const ProductDetailPage = () => {
       setLoading(true);
       setError("");
       try {
-        const products = await getProductsRequest({ limit: 100 });
-        const match = products.find((item) => item.productSlug === slug);
+        const match = await getProductBySlugRequest(slug);
         if (!match) {
           if (!cancelled) setProduct(null);
           return;
@@ -126,6 +125,9 @@ const ProductDetailPage = () => {
               {product.productDescription}
             </p>
             <p className="mt-3 text-sm">Stock: {product.stockQuantity}</p>
+            <p className="mt-1 text-sm">
+              Supplier: {product.supplierId?.supplierName || "—"}
+            </p>
             {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
             <div className="mt-6 flex items-center gap-3">
               <Button

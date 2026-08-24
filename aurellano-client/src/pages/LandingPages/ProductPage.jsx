@@ -18,7 +18,7 @@ function ProductPage() {
       setLoadError("");
       setProduct(null);
       try {
-        const products = await getProductsRequest({ limit: 100 });
+        const { products } = await getProductsRequest({ limit: 100 });
         if (cancelled) return;
         const match = products.find(
           (item) => item.productSlug === name || item.productName === name
