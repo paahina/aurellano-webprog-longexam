@@ -5,7 +5,10 @@ const { isAdmin, forbidIfNotOwner, ownerFilter } = require("../middleware/authMi
 const cartPopulate = (query) =>
   query
     .populate("userId", "firstName lastName email")
-    .populate("cartItems.productId", "productName productPrice");
+    .populate(
+      "cartItems.productId",
+      "productName productPrice productImage productSlug stockQuantity"
+    );
 
 const getCarts = async (req, res) => {
   try {

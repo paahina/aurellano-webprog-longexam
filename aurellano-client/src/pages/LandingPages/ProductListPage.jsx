@@ -1,8 +1,37 @@
+import { useEffect, useState } from "react";
 import Button from "../../components/Button.jsx";
 import ProductList from "../../components/ProductList.jsx";
-import products from "../../assets/product-content.js";
+import { getProductsRequest } from "../../services/api";
 
 const ProductListPage = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setLoadError("");
+      setProducts([]);
+      try {
+        const list = await getProductsRequest({ limit: 100, sort: "name" });
+        if (!cancelled) setProducts(list);
+      } catch (err) {
+        if (!cancelled) {
+          setProducts([]);
+          setLoadError(err.message || "Could not load products. Is the server running?");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="flex w-full flex-col gap-6">
       <section className="bg-transparent px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -33,7 +62,12 @@ const ProductListPage = () => {
           </h2>
         </div>
 
-        <ProductList products={products} />
+        {loading ? <p className="text-sm text-neutral1">Loading products...</p> : null}
+        {loadError ? <p className="text-sm text-red-300">{loadError}</p> : null}
+        {!loading && !loadError && !products.length ? (
+          <p className="text-sm text-neutral1">No products available.</p>
+        ) : null}
+        {!loading && !loadError && products.length ? <ProductList products={products} /> : null}
       </section>
     </div>
   );
