@@ -7,6 +7,11 @@ const ordersSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    supplierId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Supplier",
+      required: true,
+    },
     orderItems: [
       {
         productId: {
@@ -36,6 +41,7 @@ ordersSchema.index({ userId: 1 });
 ordersSchema.index({ orderStatus: 1 });
 ordersSchema.index({ orderedAt: -1 });
 ordersSchema.index({ userId: 1, orderStatus: 1 });
+ordersSchema.index({ supplierId: 1, orderStatus: 1 });
 ordersSchema.index({ "orderItems.productId": 1 });
 
 module.exports = mongoose.model("Orders", ordersSchema, "orders");

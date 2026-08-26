@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ClipboardList, Pencil, Trash2 } from "lucide-react";
 import AdminModal from "../../components/Admin/AdminModal";
+import AdminTablePagination from "../../components/Admin/AdminTablePagination";
 import AdminTableSkeleton from "../../components/Admin/AdminTableSkeleton";
 import AdminTableToolbar, { DATE_SORT_OPTIONS, dateSortToQuery } from "../../components/Admin/AdminTableToolbar";
 import OrderStatusChip from "../../components/Admin/OrderStatusChip";
@@ -10,10 +11,12 @@ import { useAuth } from "../../context/AuthContext";
 import { useAdminTableQuery } from "../../hooks/useAdminTableQuery";
 import {
   deleteOrderRequest,
-  getOrdersRequest,
+  getOrdersPagedRequest,
   updateOrderRequest,
 } from "../../services/api";
 import { formatDate, formatPeso } from "../../utils/format";
+
+const PAGE_SIZE = 10;
 
 const statusLabel = {
   pending: "Pending",
@@ -26,7 +29,8 @@ const inputClass =
   "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none";
 
 const AdminOrdersPage = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isSupplier = user?.userRole === "supplier";
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -36,7 +40,8 @@ const AdminOrdersPage = () => {
   const [orderStatus, setOrderStatus] = useState("pending");
   const [pickupDetails, setPickupDetails] = useState("");
   const [saving, setSaving] = useState(false);
-  const { sort, setSort } = useAdminTableQuery(
+  const [totalPages, setTotalPages] = useState(1);
+  const { sort, page, setSort, setPage } = useAdminTableQuery(
     "newest",
     DATE_SORT_OPTIONS.map((option) => option.value)
   );
@@ -45,11 +50,17 @@ const AdminOrdersPage = () => {
     setLoading(true);
     setError("");
     try {
-      const data = await getOrdersRequest(token, { sort: dateSortToQuery(sort) });
-      setOrders(data);
+      const data = await getOrdersPagedRequest(token, {
+        sort: dateSortToQuery(sort),
+        page,
+        limit: PAGE_SIZE,
+      });
+      setOrders(data.items);
+      setTotalPages(data.totalPages);
     } catch (err) {
       setError(err.message);
       setOrders([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -57,7 +68,12 @@ const AdminOrdersPage = () => {
 
   useEffect(() => {
     load();
-  }, [token, sort]);
+  }, [token, sort, page]);
+
+  useEffect(() => {
+    if (loading || page <= totalPages) return;
+    setPage(totalPages);
+  }, [loading, page, totalPages, setPage]);
 
   const openEdit = (order) => {
     setEditing(order);
@@ -129,7 +145,7 @@ const AdminOrdersPage = () => {
 
       <div className="mt-4 overflow-x-auto rounded-3xl bg-white shadow-sm">
         {loading ? (
-          <AdminTableSkeleton columns={5} label="Loading orders" />
+          <AdminTableSkeleton columns={isSupplier ? 5 : 6} label="Loading orders" />
         ) : !orders.length ? (
           <p className="p-6 text-sm text-zinc-600">No orders yet.</p>
         ) : (
@@ -137,6 +153,9 @@ const AdminOrdersPage = () => {
             <thead className="border-b border-zinc-200 bg-primary text-neutral1">
               <tr>
                 <th className="px-4 py-3 font-semibold">Customer</th>
+                {!isSupplier ? (
+                  <th className="px-4 py-3 font-semibold">Supplier</th>
+                ) : null}
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Total</th>
                 <th className="px-4 py-3 font-semibold">Ordered</th>
@@ -157,6 +176,11 @@ const AdminOrdersPage = () => {
                         .join(", ")}
                     </p>
                   </td>
+                  {!isSupplier ? (
+                    <td className="px-4 py-3">
+                      {order.supplierId?.supplierName || "—"}
+                    </td>
+                  ) : null}
                   <td className="px-4 py-3">
                     <OrderStatusChip status={order.orderStatus} />
                   </td>
@@ -170,12 +194,14 @@ const AdminOrdersPage = () => {
                           Edit
                         </span>
                       </Button>
-                      <Button type="button" variant="danger" onClick={() => onDelete(order)}>
-                        <span className="inline-flex items-center gap-1">
-                          <Trash2 className="h-3 w-3" />
-                          Delete
-                        </span>
-                      </Button>
+                      {!isSupplier ? (
+                        <Button type="button" variant="danger" onClick={() => onDelete(order)}>
+                          <span className="inline-flex items-center gap-1">
+                            <Trash2 className="h-3 w-3" />
+                            Delete
+                          </span>
+                        </Button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -183,6 +209,14 @@ const AdminOrdersPage = () => {
             </tbody>
           </table>
         )}
+        {!loading ? (
+          <AdminTablePagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            label="Orders pagination"
+          />
+        ) : null}
       </div>
 
       <AdminModal open={modalOpen} title="Edit order" onClose={closeModal} wide>

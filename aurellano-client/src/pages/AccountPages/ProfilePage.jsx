@@ -4,7 +4,11 @@ import { KeyRound, LogOut, User } from "lucide-react";
 import Button from "../../components/Button";
 import ProfileSkeleton from "../../components/Customer/ProfileSkeleton";
 import { useAuth } from "../../context/AuthContext";
-import { updateUserRequest } from "../../services/api";
+import {
+  getSupplierByIdRequest,
+  updateSupplierRequest,
+  updateUserRequest,
+} from "../../services/api";
 
 const inputClasses =
   "mt-2 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none";
@@ -24,6 +28,13 @@ const ProfilePage = () => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [supplierProfile, setSupplierProfile] = useState({
+    supplierName: "",
+    supplierDescription: "",
+  });
+  const [supplierSaving, setSupplierSaving] = useState(false);
+  const [supplierLoading, setSupplierLoading] = useState(false);
+  const isSupplier = user?.userRole === "supplier";
 
   useEffect(() => {
     if (!user) return;
@@ -33,6 +44,45 @@ const ProfilePage = () => {
       email: user.email || "",
     });
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !isSupplier || !user.supplierId) return;
+    let cancelled = false;
+    const load = async () => {
+      setSupplierLoading(true);
+      try {
+        const supplier = await getSupplierByIdRequest(user.supplierId);
+        if (cancelled) return;
+        setSupplierProfile({
+          supplierName: supplier.supplierName || "",
+          supplierDescription: supplier.supplierDescription || "",
+        });
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setSupplierLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isSupplier]);
+
+  const saveSupplierProfile = async (event) => {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+    setSupplierSaving(true);
+    try {
+      await updateSupplierRequest(user.supplierId, supplierProfile, token);
+      setMessage("Supplier updated.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSupplierSaving(false);
+    }
+  };
 
   const saveProfile = async (event) => {
     event.preventDefault();
@@ -124,6 +174,54 @@ const ProfilePage = () => {
           Save information
         </Button>
       </form>
+
+      {isSupplier ? (
+        <form
+          onSubmit={saveSupplierProfile}
+          className="mt-6 rounded-3xl bg-zinc-100 p-6"
+        >
+          <h2 className="flex items-center gap-2 text-xl font-semibold text-primary">
+            <User className="h-5 w-5" strokeWidth={2} />
+            Supplier brand/company info
+          </h2>
+          <label className="mt-4 block text-sm">
+            Supplier name
+            <input
+              className={inputClasses}
+              value={supplierProfile.supplierName}
+              onChange={(event) =>
+                setSupplierProfile((prev) => ({
+                  ...prev,
+                  supplierName: event.target.value,
+                }))
+              }
+              required
+            />
+          </label>
+          <label className="mt-4 block text-sm">
+            Supplier description
+            <textarea
+              className={`${inputClasses} min-h-28`}
+              value={supplierProfile.supplierDescription}
+              onChange={(event) =>
+                setSupplierProfile((prev) => ({
+                  ...prev,
+                  supplierDescription: event.target.value,
+                }))
+              }
+              required
+            />
+          </label>
+          <Button
+            type="submit"
+            variant="custom2"
+            className="mt-4"
+            disabled={supplierSaving || supplierLoading}
+          >
+            {supplierSaving ? "Saving..." : "Save supplier info"}
+          </Button>
+        </form>
+      ) : null}
 
       <form onSubmit={savePassword} className="mt-6 rounded-3xl bg-zinc-100 p-6">
         <h2 className="flex items-center gap-2 text-xl font-semibold text-primary">

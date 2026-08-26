@@ -4,11 +4,14 @@ import {
   getOrdersRequest,
   getProductsRequest,
   getReviewsRequest,
+  getSupplierProductsRequest,
+  getSupplierReviewsRequest,
   getUsersRequest,
 } from "../../services/api";
 
 const OverviewPage = () => {
   const { token, user } = useAuth();
+  const isSupplier = user?.userRole === "supplier";
   const [counts, setCounts] = useState({
     products: 0,
     pendingOrders: 0,
@@ -24,6 +27,22 @@ const OverviewPage = () => {
       setLoading(true);
       setError("");
       try {
+        if (isSupplier) {
+          const [productResult, orders] = await Promise.all([
+            getSupplierProductsRequest({ limit: 1 }, token),
+            getOrdersRequest(token, { status: "pending" }),
+          ]);
+          const reviews = await getSupplierReviewsRequest({}, token);
+          if (cancelled) return;
+          setCounts({
+            products: productResult.total,
+            pendingOrders: orders.length,
+            reviews: (reviews || []).length,
+            users: 0,
+          });
+          return;
+        }
+
         const [productResult, orders, reviews, users] = await Promise.all([
           getProductsRequest({ limit: 100 }),
           getOrdersRequest(token, { status: "pending" }),
@@ -47,7 +66,7 @@ const OverviewPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, isSupplier]);
 
   return (
     <div>
@@ -63,19 +82,34 @@ const OverviewPage = () => {
       {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
 
       {loading ? (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }, (_, index) => (
+        <div
+          className={
+            isSupplier ? "mt-8 grid gap-4 sm:grid-cols-2" : "mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          }
+        >
+          {Array.from({ length: isSupplier ? 2 : 4 }).map((_, index) => (
             <div key={index} className="h-28 animate-pulse rounded-3xl bg-white" />
           ))}
         </div>
       ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["Products", counts.products],
-            ["Pending orders", counts.pendingOrders],
-            ["Reviews", counts.reviews],
-            ["Users", counts.users],
-          ].map(([label, value]) => (
+        <div
+          className={
+            isSupplier ? "mt-8 grid gap-4 sm:grid-cols-2" : "mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          }
+        >
+          {(
+            isSupplier
+              ? [
+                  ["Products", counts.products],
+                  ["Reviews", counts.reviews],
+                ]
+              : [
+                  ["Products", counts.products],
+                  ["Pending orders", counts.pendingOrders],
+                  ["Reviews", counts.reviews],
+                  ["Users", counts.users],
+                ]
+          ).map(([label, value]) => (
             <article key={label} className="rounded-3xl bg-white p-5 shadow-sm">
               <p className="text-3xl font-bold text-primary">{value}</p>
               <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Package, Pencil, Plus, Trash2 } from "lucide-react";
 import AdminModal from "../../components/Admin/AdminModal";
+import AdminTablePagination from "../../components/Admin/AdminTablePagination";
 import AdminTableSkeleton from "../../components/Admin/AdminTableSkeleton";
 import AdminTableToolbar, {
   PRODUCT_SORT_OPTIONS,
@@ -16,11 +17,14 @@ import {
   deleteProductRequest,
   getCategoriesRequest,
   getProductsRequest,
+  getSupplierProductsRequest,
   getSuppliersRequest,
   updateProductRequest,
 } from "../../services/api";
 import { formatPeso, getId } from "../../utils/format";
 import { deriveStockStatus } from "../../utils/stock";
+
+const PAGE_SIZE = 10;
 
 const emptyForm = {
   productName: "",
@@ -44,7 +48,8 @@ const inputClass =
   "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none";
 
 const AdminProductsPage = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isSupplier = user?.userRole === "supplier";
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -55,7 +60,8 @@ const AdminProductsPage = () => {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const { sort, setSort } = useAdminTableQuery(
+  const [totalPages, setTotalPages] = useState(1);
+  const { sort, page, setSort, setPage } = useAdminTableQuery(
     "az",
     PRODUCT_SORT_OPTIONS.map((option) => option.value)
   );
@@ -64,17 +70,26 @@ const AdminProductsPage = () => {
     setLoading(true);
     setError("");
     try {
+      const query = {
+        page,
+        limit: PAGE_SIZE,
+        sort: productSortToQuery(sort),
+      };
       const [productResult, categoryList, supplierList] = await Promise.all([
-        getProductsRequest({ limit: 100, sort: productSortToQuery(sort) }),
+        isSupplier
+          ? getSupplierProductsRequest(query, token)
+          : getProductsRequest(query),
         getCategoriesRequest(),
-        getSuppliersRequest(),
+        isSupplier ? Promise.resolve([]) : getSuppliersRequest(),
       ]);
       setProducts(productResult.products);
+      setTotalPages(productResult.totalPages ?? 1);
       setCategories(Array.isArray(categoryList) ? categoryList : categoryList?.data || []);
       setSuppliers(Array.isArray(supplierList) ? supplierList : supplierList?.data || []);
     } catch (err) {
       setError(err.message);
       setProducts([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -82,11 +97,19 @@ const AdminProductsPage = () => {
 
   useEffect(() => {
     load();
-  }, [token, sort]);
+  }, [token, sort, page, isSupplier, user?.supplierId]);
+
+  useEffect(() => {
+    if (loading || page <= totalPages) return;
+    setPage(totalPages);
+  }, [loading, page, totalPages, setPage]);
 
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      supplierId: isSupplier ? getId(user?.supplierId) : emptyForm.supplierId,
+    });
     setModalOpen(true);
     setMessage("");
     setError("");
@@ -265,6 +288,14 @@ const AdminProductsPage = () => {
             </tbody>
           </table>
         )}
+        {!loading ? (
+          <AdminTablePagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            label="Products pagination"
+          />
+        ) : null}
       </div>
 
       <AdminModal
@@ -337,17 +368,25 @@ const AdminProductsPage = () => {
               ))}
             </select>
           </label>
-          <label className="text-sm">
-            Supplier
-            <select name="supplierId" value={form.supplierId} onChange={onChange} required className={inputClass}>
-              <option value="">Select supplier</option>
-              {suppliers.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.supplierName}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!isSupplier ? (
+            <label className="text-sm">
+              Supplier
+              <select
+                name="supplierId"
+                value={form.supplierId}
+                onChange={onChange}
+                required
+                className={inputClass}
+              >
+                <option value="">Select supplier</option>
+                {suppliers.map((item) => (
+                  <option key={item._id} value={item._id}>
+                    {item.supplierName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <label className="text-sm">
             Stock quantity
             <input

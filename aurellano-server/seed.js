@@ -84,6 +84,27 @@ const seed = async () => {
 
     const [nike, officialNu] = suppliers;
 
+    await User.create([
+      {
+        firstName: "Nike",
+        lastName: "Supplier",
+        email: "nike.supplier@national-u.edu.ph",
+        password: "password123",
+        userRole: "supplier",
+        supplierId: nike._id,
+        isActive: true,
+      },
+      {
+        firstName: "Official NU",
+        lastName: "Supplier",
+        email: "officialnu.supplier@national-u.edu.ph",
+        password: "password123",
+        userRole: "supplier",
+        supplierId: officialNu._id,
+        isActive: true,
+      },
+    ]);
+
     const products = await Product.create([
       {
         productName: "NU Bulldogs T-Shirt",
@@ -193,30 +214,40 @@ const seed = async () => {
     await Orders.create([
       {
         userId: users[0]._id,
-        orderItems: [
-          orderItem(tshirt, 2),
-          orderItem(plushie, 1),
-        ],
-        totalAmount: 299 * 2 + 349,
+        supplierId: nike._id,
+        orderItems: [orderItem(tshirt, 2)],
+        totalAmount: 299 * 2,
+        orderStatus: "pending",
+        pickupDetails: "NU Manila Bulldogs Exchange - Main Building",
+      },
+      {
+        userId: users[0]._id,
+        supplierId: officialNu._id,
+        orderItems: [orderItem(plushie, 1)],
+        totalAmount: 349,
         orderStatus: "pending",
         pickupDetails: "NU Manila Bulldogs Exchange - Main Building",
       },
       {
         userId: users[1]._id,
-        orderItems: [
-          orderItem(hoodie, 1),
-          orderItem(tumbler, 1),
-        ],
-        totalAmount: 999 + 699,
+        supplierId: nike._id,
+        orderItems: [orderItem(hoodie, 1)],
+        totalAmount: 999,
+        orderStatus: "confirmed",
+        pickupDetails: "NU Manila Bulldogs Exchange - Social Hall",
+      },
+      {
+        userId: users[1]._id,
+        supplierId: officialNu._id,
+        orderItems: [orderItem(tumbler, 1)],
+        totalAmount: 699,
         orderStatus: "confirmed",
         pickupDetails: "NU Manila Bulldogs Exchange - Social Hall",
       },
       {
         userId: users[2]._id,
-        orderItems: [
-          orderItem(jersey, 1),
-          orderItem(nursing, 1),
-        ],
+        supplierId: nike._id,
+        orderItems: [orderItem(jersey, 1), orderItem(nursing, 1)],
         totalAmount: 319 + 799,
         orderStatus: "delivered",
         pickupDetails: "NU East Ortigas Bulldogs Exchange",
@@ -263,7 +294,7 @@ const seed = async () => {
       suppliers: suppliers.length,
       products: products.length,
       carts: 3,
-      orders: 3,
+      orders: 5,
       reviews: 5,
     });
     process.exit(0);

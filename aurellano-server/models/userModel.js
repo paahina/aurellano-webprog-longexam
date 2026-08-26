@@ -17,8 +17,12 @@ const userSchema = new mongoose.Schema(
     userRole: {
       type: String,
       required: true,
-      enum: ["customer", "Admin"],
+      enum: ["customer", "Admin", "supplier"],
       default: "customer",
+    },
+    supplierId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Supplier",
     },
     isActive: { type: Boolean, required: true, default: true },
   },
@@ -27,6 +31,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ userRole: 1 });
 userSchema.index({ isActive: 1 });
+userSchema.index({ supplierId: 1 });
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;

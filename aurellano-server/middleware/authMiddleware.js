@@ -22,7 +22,7 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = verifyToken(token);
-    const user = await User.findById(decoded.id).select("isActive userRole email");
+    const user = await User.findById(decoded.id).select("isActive userRole email supplierId");
     if (!user) {
       return res.status(HttpStatus.UNAUTHORIZED).json({ message: "Session is no longer valid" });
     }
@@ -34,6 +34,7 @@ const protect = async (req, res, next) => {
       id: user._id.toString(),
       email: user.email,
       userRole: user.userRole,
+      supplierId: user.supplierId ? user.supplierId.toString() : undefined,
     };
     req.token = token;
     next();

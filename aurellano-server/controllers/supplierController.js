@@ -31,6 +31,13 @@ const createSupplier = async (req, res) => {
 
 const updateSupplier = async (req, res) => {
   try {
+    if (req.user?.userRole === "supplier") {
+      if (!req.user.supplierId || req.params.id.toString() !== req.user.supplierId.toString()) {
+        return res.status(HttpStatus.FORBIDDEN).json({
+          message: "You do not have permission to update this supplier",
+        });
+      }
+    }
     const supplier = await Supplier.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,

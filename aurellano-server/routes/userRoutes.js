@@ -3,6 +3,7 @@ const {
   getUsers,
   getUserById,
   createUser,
+  createUserByAdmin,
   loginUser,
   logoutUser,
   getSession,
@@ -18,6 +19,7 @@ router.post("/create", createUser);
 router.post("/logout", protect, logoutUser);
 router.get("/session", protect, getSession);
 router.get("/getAllUsers", protect, authorize("Admin"), getUsers);
+router.post("/adminCreate", protect, authorize("Admin"), createUserByAdmin);
 router.get("/get/:id", protect, getUserById);
 router.put("/update/:id", protect, updateUser);
 router.delete("/delete/:id", protect, authorize("Admin"), deleteUser);

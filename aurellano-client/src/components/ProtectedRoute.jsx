@@ -14,7 +14,18 @@ const ProtectedRoute = ({ roles }) => {
   }
 
   if (roles && !roles.includes(user.userRole)) {
-    return <Navigate to={user.userRole === "Admin" ? "/admin" : "/shop"} replace />;
+    return (
+      <Navigate
+        to={
+          user.userRole === "Admin"
+            ? "/admin"
+            : user.userRole === "supplier"
+              ? "/supplier"
+              : "/shop"
+        }
+        replace
+      />
+    );
   }
 
   return <Outlet />;

@@ -22,19 +22,17 @@ const ReviewProductCard = ({ entry, selected = false, onSelect }) => {
 
   return (
     <ActivityCard
-      role={isReviewed ? undefined : "button"}
-      tabIndex={isReviewed ? undefined : 0}
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect?.(entry)}
       onKeyDown={(event) => {
-        if (isReviewed) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onSelect?.(entry);
         }
       }}
       className={[
-        "transition",
-        isReviewed ? "cursor-default" : "cursor-pointer hover:bg-zinc-50",
+        "cursor-pointer transition hover:bg-zinc-50",
         selected ? "ring-2 ring-secondary" : "",
       ]
         .filter(Boolean)
@@ -82,7 +80,9 @@ const ReviewProductCard = ({ entry, selected = false, onSelect }) => {
               </p>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-zinc-600">Click to write a review for this product.</p>
+            <p className="mt-3 text-sm text-zinc-600">
+              {isReviewed ? "Click to view your review." : "Click to write a review for this product."}
+            </p>
           )}
         </div>
       </div>

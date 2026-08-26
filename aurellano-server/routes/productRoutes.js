@@ -14,15 +14,18 @@ const router = express.Router();
 router.get("/getAllProducts", getProducts);
 router.get("/get/slug/:slug", getProductBySlug);
 router.get("/get/:id", getProductById);
-router.post("/create", protect, authorize("Admin"), createProduct);
-router.put("/update/:id", protect, authorize("Admin"), updateProduct);
-router.delete("/delete/:id", protect, authorize("Admin"), deleteProduct);
+router.post("/create", protect, authorize("Admin", "supplier"), createProduct);
+router.put("/update/:id", protect, authorize("Admin", "supplier"), updateProduct);
+router.delete("/delete/:id", protect, authorize("Admin", "supplier"), deleteProduct);
 
 router.get("/v1", getProducts);
 router.get("/v1/slug/:slug", getProductBySlug);
 router.get("/v1/:id", getProductById);
-router.post("/v1", protect, authorize("Admin"), createProduct);
-router.put("/v1/:id", protect, authorize("Admin"), updateProduct);
-router.delete("/v1/:id", protect, authorize("Admin"), deleteProduct);
+
+router.get("/supplier/v1", protect, authorize("supplier"), getProducts);
+
+router.post("/v1", protect, authorize("Admin", "supplier"), createProduct);
+router.put("/v1/:id", protect, authorize("Admin", "supplier"), updateProduct);
+router.delete("/v1/:id", protect, authorize("Admin", "supplier"), deleteProduct);
 
 module.exports = router;

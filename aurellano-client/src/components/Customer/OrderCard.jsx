@@ -1,22 +1,21 @@
 import Button from "../Button";
+import OrderStatusChip from "../Admin/OrderStatusChip";
 import ActivityCard from "./ActivityCard";
 import OrderItemColumn from "./OrderItemColumn";
 import { formatDate, formatPeso } from "../../utils/format";
-
-const statusLabel = {
-  pending: "Pending",
-  confirmed: "Ready for claiming",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
 
 const OrderCard = ({ order, onCancel }) => {
   return (
     <ActivityCard>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-semibold text-primary">
-          {statusLabel[order.orderStatus] || order.orderStatus}
-        </p>
+        <div>
+          <OrderStatusChip status={order.orderStatus} />
+          {order.supplierId?.supplierName ? (
+            <p className="mt-1 text-sm text-zinc-600">
+              Supplier: {order.supplierId.supplierName}
+            </p>
+          ) : null}
+        </div>
         <p className="text-sm text-zinc-500">{formatDate(order.orderedAt)}</p>
       </div>
 

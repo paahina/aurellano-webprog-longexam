@@ -19,6 +19,10 @@ const getProducts = async (req, res) => {
     const { category, supplier, stockStatus, search, sort } = req.query;
     const filter = {};
 
+    if (req.user?.userRole === "supplier" && req.user.supplierId) {
+      filter.supplierId = req.user.supplierId;
+    }
+
     if (category) {
       const matchedCategory = await Category.findOne({
         categoryName: { $regex: category, $options: "i" },
@@ -42,7 +46,7 @@ const getProducts = async (req, res) => {
       filter.categoryId = matchedCategory._id;
     }
 
-    if (supplier) {
+    if (!filter.supplierId && supplier) {
       const matchedSupplier = await Supplier.findOne({
         supplierName: { $regex: supplier, $options: "i" },
       });
@@ -269,7 +273,12 @@ const getProductBySlug = async (req, res) => {
 
 const createProduct = async (req, res) => {
   try {
-    const product = await Product.create(normalizeProductPayload(req.body));
+    const payload = normalizeProductPayload(req.body);
+    if (req.user?.userRole === "supplier" && req.user.supplierId) {
+      payload.supplierId = req.user.supplierId;
+    }
+
+    const product = await Product.create(payload);
     return sendResponse(
       res,
       HttpStatus.CREATED,
@@ -284,15 +293,8 @@ const createProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      normalizeProductPayload(req.body),
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-    if (!product) {
+    const existing = await Product.findById(req.params.id);
+    if (!existing) {
       return sendResponse(
         res,
         HttpStatus.NOT_FOUND,
@@ -300,6 +302,28 @@ const updateProduct = async (req, res) => {
         "Product not found."
       );
     }
+
+    if (req.user?.userRole === "supplier" && req.user.supplierId) {
+      if (existing.supplierId.toString() !== req.user.supplierId.toString()) {
+        return res.status(HttpStatus.FORBIDDEN).json({
+          message: "You do not have permission to update this product",
+        });
+      }
+    }
+
+    const payload = normalizeProductPayload(req.body);
+    if (req.user?.userRole === "supplier" && req.user.supplierId) {
+      payload.supplierId = req.user.supplierId;
+    }
+
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      payload,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
     return sendResponse(
       res,
       HttpStatus.OK,
@@ -314,15 +338,20 @@ const updateProduct = async (req, res) => {
 
 const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
-    if (!product) {
-      return sendResponse(
-        res,
-        HttpStatus.NOT_FOUND,
-        false,
-        "Product not found."
-      );
+    const existing = await Product.findById(req.params.id);
+    if (!existing) {
+      return sendResponse(res, HttpStatus.NOT_FOUND, false, "Product not found.");
     }
+
+    if (req.user?.userRole === "supplier" && req.user.supplierId) {
+      if (existing.supplierId.toString() !== req.user.supplierId.toString()) {
+        return res.status(HttpStatus.FORBIDDEN).json({
+          message: "You do not have permission to delete this product",
+        });
+      }
+    }
+
+    const product = await Product.findByIdAndDelete(req.params.id);
     return sendResponse(
       res,
       HttpStatus.OK,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Pencil, Trash2, Users } from "lucide-react";
+import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import AdminModal from "../../components/Admin/AdminModal";
+import AdminTablePagination from "../../components/Admin/AdminTablePagination";
 import AdminTableSkeleton from "../../components/Admin/AdminTableSkeleton";
 import AdminTableToolbar, {
   GENERIC_SORT_OPTIONS,
@@ -10,14 +11,29 @@ import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useAdminTableQuery } from "../../hooks/useAdminTableQuery";
 import {
+  createUserByAdminRequest,
   deleteUserRequest,
-  getUsersRequest,
+  getUsersPagedRequest,
   updateUserRequest,
 } from "../../services/api";
 import { formatDate } from "../../utils/format";
 
+const PAGE_SIZE = 10;
+
 const inputClass =
   "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none";
+
+const emptyForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  userRole: "customer",
+  isActive: true,
+  supplierName: "",
+  supplierDescription: "",
+  newPassword: "",
+  confirmPassword: "",
+};
 
 const AdminUsersPage = () => {
   const { token } = useAuth();
@@ -27,17 +43,10 @@ const AdminUsersPage = () => {
   const [message, setMessage] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    userRole: "customer",
-    isActive: true,
-    newPassword: "",
-    confirmPassword: "",
-  });
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const { sort, setSort } = useAdminTableQuery(
+  const [totalPages, setTotalPages] = useState(1);
+  const { sort, page, setSort, setPage } = useAdminTableQuery(
     "az",
     GENERIC_SORT_OPTIONS.map((option) => option.value)
   );
@@ -46,11 +55,17 @@ const AdminUsersPage = () => {
     setLoading(true);
     setError("");
     try {
-      const data = await getUsersRequest(token, { sort: genericSortToQuery(sort) });
-      setUsers(data);
+      const data = await getUsersPagedRequest(token, {
+        sort: genericSortToQuery(sort),
+        page,
+        limit: PAGE_SIZE,
+      });
+      setUsers(data.items);
+      setTotalPages(data.totalPages);
     } catch (err) {
       setError(err.message);
       setUsers([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -58,7 +73,20 @@ const AdminUsersPage = () => {
 
   useEffect(() => {
     load();
-  }, [token, sort]);
+  }, [token, sort, page]);
+
+  useEffect(() => {
+    if (loading || page <= totalPages) return;
+    setPage(totalPages);
+  }, [loading, page, totalPages, setPage]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+    setMessage("");
+    setError("");
+  };
 
   const openEdit = (user) => {
     setEditing(user);
@@ -68,6 +96,8 @@ const AdminUsersPage = () => {
       email: user.email || "",
       userRole: user.userRole || "customer",
       isActive: user.isActive !== false,
+      supplierName: user.supplierId?.supplierName || "",
+      supplierDescription: user.supplierId?.supplierDescription || "",
       newPassword: "",
       confirmPassword: "",
     });
@@ -79,6 +109,7 @@ const AdminUsersPage = () => {
   const closeModal = () => {
     setModalOpen(false);
     setEditing(null);
+    setForm(emptyForm);
   };
 
   const onChange = (event) => {
@@ -91,11 +122,19 @@ const AdminUsersPage = () => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    if (!editing) return;
     const newPassword = form.newPassword.trim();
     const confirmPassword = form.confirmPassword.trim();
 
-    if (newPassword || confirmPassword) {
+    if (!editing) {
+      if (newPassword.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setError("Password and confirm password do not match.");
+        return;
+      }
+    } else if (newPassword || confirmPassword) {
       if (newPassword.length < 6) {
         setError("New password must be at least 6 characters.");
         return;
@@ -110,20 +149,41 @@ const AdminUsersPage = () => {
     setError("");
     setMessage("");
     try {
-      const payload = {
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim(),
-      };
-      if (editing.userRole !== "Admin") {
-        payload.userRole = form.userRole;
-        payload.isActive = form.isActive;
+      if (!editing) {
+        const payload = {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          email: form.email.trim(),
+          password: newPassword,
+          userRole: form.userRole,
+          isActive: form.userRole === "Admin" ? true : form.isActive,
+        };
+        if (form.userRole === "supplier") {
+          payload.supplierName = form.supplierName.trim();
+          payload.supplierDescription = form.supplierDescription.trim();
+        }
+        await createUserByAdminRequest(payload, token);
+        setMessage("User created.");
+      } else {
+        const payload = {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          email: form.email.trim(),
+        };
+        if (editing.userRole !== "Admin") {
+          payload.userRole = form.userRole;
+          payload.isActive = form.isActive;
+          if (form.userRole === "supplier") {
+            payload.supplierName = form.supplierName?.trim();
+            payload.supplierDescription = form.supplierDescription?.trim();
+          }
+        }
+        if (newPassword) {
+          payload.password = newPassword;
+        }
+        await updateUserRequest(editing._id, payload, token);
+        setMessage("User updated.");
       }
-      if (newPassword) {
-        payload.password = newPassword;
-      }
-      await updateUserRequest(editing._id, payload, token);
-      setMessage("User updated.");
       closeModal();
       await load();
     } catch (err) {
@@ -150,15 +210,29 @@ const AdminUsersPage = () => {
     }
   };
 
+  const showSupplierFields =
+    (!editing || editing.userRole !== "Admin") && form.userRole === "supplier";
+  const editingAdmin = Boolean(editing && editing.userRole === "Admin");
+
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
-        Access
-      </p>
-      <h1 className="mt-2 flex items-center gap-2 text-3xl font-bold text-primary">
-        <Users className="h-7 w-7" strokeWidth={2} />
-        Users
-      </h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
+            Access
+          </p>
+          <h1 className="mt-2 flex items-center gap-2 text-3xl font-bold text-primary">
+            <Users className="h-7 w-7" strokeWidth={2} />
+            Users
+          </h1>
+        </div>
+        <Button type="button" variant="custom2" onClick={openCreate}>
+          <span className="inline-flex items-center gap-2">
+            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+            Create user
+          </span>
+        </Button>
+      </div>
 
       {message ? <p className="mt-4 text-sm text-green-700">{message}</p> : null}
       {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
@@ -231,114 +305,150 @@ const AdminUsersPage = () => {
         )}
       </div>
 
-      <AdminModal open={modalOpen} title="Edit user" onClose={closeModal}>
-        {editing ? (
-          <form onSubmit={onSubmit} className="space-y-4">
+      <AdminTablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <AdminModal
+        open={modalOpen}
+        title={editing ? "Edit user" : "Create user"}
+        onClose={closeModal}
+      >
+        <form onSubmit={onSubmit} className="space-y-4">
+          <label className="block text-sm">
+            First name
+            <input
+              name="firstName"
+              value={form.firstName}
+              onChange={onChange}
+              required
+              className={inputClass}
+            />
+          </label>
+          <label className="block text-sm">
+            Last name
+            <input
+              name="lastName"
+              value={form.lastName}
+              onChange={onChange}
+              required
+              className={inputClass}
+            />
+          </label>
+          <label className="block text-sm">
+            Email
+            <input
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={onChange}
+              required
+              className={inputClass}
+            />
+          </label>
+          {editingAdmin ? (
+            <p className="text-sm text-zinc-600">Role: Admin (cannot be changed)</p>
+          ) : (
             <label className="block text-sm">
-              First name
-              <input
-                name="firstName"
-                value={form.firstName}
+              Role
+              <select
+                name="userRole"
+                value={form.userRole}
                 onChange={onChange}
-                required
                 className={inputClass}
-              />
+              >
+                <option value="customer">customer</option>
+                <option value="supplier">supplier</option>
+                <option value="Admin">Admin</option>
+              </select>
             </label>
-            <label className="block text-sm">
-              Last name
-              <input
-                name="lastName"
-                value={form.lastName}
-                onChange={onChange}
-                required
-                className={inputClass}
-              />
-            </label>
-            <label className="block text-sm">
-              Email
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={onChange}
-                required
-                className={inputClass}
-              />
-            </label>
-            {editing.userRole === "Admin" ? (
-              <p className="text-sm text-zinc-600">Role: Admin (cannot be changed)</p>
-            ) : (
+          )}
+          {showSupplierFields ? (
+            <>
               <label className="block text-sm">
-                Role
-                <select
-                  name="userRole"
-                  value={form.userRole}
+                Supplier name
+                <input
+                  name="supplierName"
+                  value={form.supplierName}
                   onChange={onChange}
+                  required
                   className={inputClass}
-                >
-                  <option value="customer">customer</option>
-                  <option value="Admin">Admin</option>
-                </select>
+                />
               </label>
-            )}
+              <label className="block text-sm">
+                Supplier description
+                <textarea
+                  name="supplierDescription"
+                  value={form.supplierDescription}
+                  onChange={onChange}
+                  required
+                  className={`${inputClass} min-h-28`}
+                />
+              </label>
+            </>
+          ) : null}
+          {editing ? (
             <p className="text-sm text-zinc-600">
               Created: {formatDate(editing.createdAt) || "—"}
             </p>
-            {editing.userRole !== "Admin" ? (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  name="isActive"
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={onChange}
-                />
-                Active account
-              </label>
-            ) : (
-              <p className="text-sm text-zinc-600">
-                Admin accounts cannot be deactivated.
-              </p>
-            )}
-            <div className="border-t border-zinc-200 pt-4">
-              <p className="text-sm font-medium text-primary">Change password (optional)</p>
+          ) : null}
+          {!editingAdmin ? (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                name="isActive"
+                type="checkbox"
+                checked={form.isActive}
+                onChange={onChange}
+                disabled={form.userRole === "Admin"}
+              />
+              Active account
+            </label>
+          ) : (
+            <p className="text-sm text-zinc-600">Admin accounts cannot be deactivated.</p>
+          )}
+          <div className="border-t border-zinc-200 pt-4">
+            <p className="text-sm font-medium text-primary">
+              {editing ? "Change password (optional)" : "Password"}
+            </p>
+            {editing ? (
               <p className="mt-1 text-xs text-zinc-500">
                 Leave blank to keep the current password.
               </p>
-              <label className="mt-3 block text-sm">
-                New password
-                <input
-                  name="newPassword"
-                  type="password"
-                  value={form.newPassword}
-                  onChange={onChange}
-                  autoComplete="new-password"
-                  minLength={6}
-                  className={inputClass}
-                />
-              </label>
-              <label className="mt-3 block text-sm">
-                Confirm password
-                <input
-                  name="confirmPassword"
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={onChange}
-                  autoComplete="new-password"
-                  minLength={6}
-                  className={inputClass}
-                />
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" variant="custom2" disabled={saving}>
-                {saving ? "Saving..." : "Save changes"}
-              </Button>
-              <Button type="button" variant="custom5" onClick={closeModal}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        ) : null}
+            ) : null}
+            <label className="mt-3 block text-sm">
+              {editing ? "New password" : "Password"}
+              <input
+                name="newPassword"
+                type="password"
+                value={form.newPassword}
+                onChange={onChange}
+                autoComplete="new-password"
+                minLength={6}
+                required={!editing}
+                className={inputClass}
+              />
+            </label>
+            <label className="mt-3 block text-sm">
+              Confirm password
+              <input
+                name="confirmPassword"
+                type="password"
+                value={form.confirmPassword}
+                onChange={onChange}
+                autoComplete="new-password"
+                minLength={6}
+                required={!editing}
+                className={inputClass}
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variant="custom2" disabled={saving}>
+              {saving ? "Saving..." : editing ? "Save changes" : "Create"}
+            </Button>
+            <Button type="button" variant="custom5" onClick={closeModal}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       </AdminModal>
     </div>
   );

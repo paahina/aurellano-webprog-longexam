@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pencil, Star, Trash2 } from "lucide-react";
 import AdminModal from "../../components/Admin/AdminModal";
+import AdminTablePagination from "../../components/Admin/AdminTablePagination";
 import AdminTableSkeleton from "../../components/Admin/AdminTableSkeleton";
 import AdminTableToolbar, { DATE_SORT_OPTIONS, dateSortToQuery } from "../../components/Admin/AdminTableToolbar";
 import Button from "../../components/Button";
@@ -9,16 +10,20 @@ import { useAuth } from "../../context/AuthContext";
 import { useAdminTableQuery } from "../../hooks/useAdminTableQuery";
 import {
   deleteReviewRequest,
-  getReviewsRequest,
+  getReviewsPagedRequest,
+  getSupplierReviewsPagedRequest,
   updateReviewRequest,
 } from "../../services/api";
 import { formatDate } from "../../utils/format";
+
+const PAGE_SIZE = 10;
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none";
 
 const AdminReviewsPage = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isSupplier = user?.userRole === "supplier";
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -27,7 +32,8 @@ const AdminReviewsPage = () => {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ reviewRating: 5, reviewComment: "" });
   const [saving, setSaving] = useState(false);
-  const { sort, search, setSort, updateParam } = useAdminTableQuery(
+  const [totalPages, setTotalPages] = useState(1);
+  const { sort, search, page, setSort, setPage, updateParam } = useAdminTableQuery(
     "newest",
     DATE_SORT_OPTIONS.map((option) => option.value)
   );
@@ -48,13 +54,17 @@ const AdminReviewsPage = () => {
     setLoading(true);
     setError("");
     try {
-      const query = { sort: dateSortToQuery(sort) };
+      const query = { sort: dateSortToQuery(sort), page, limit: PAGE_SIZE };
       if (search) query.search = search;
-      const data = await getReviewsRequest(query);
-      setReviews(data);
+      const data = isSupplier
+        ? await getSupplierReviewsPagedRequest(query, token)
+        : await getReviewsPagedRequest(query, token);
+      setReviews(data.items);
+      setTotalPages(data.totalPages);
     } catch (err) {
       setError(err.message);
       setReviews([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -62,9 +72,15 @@ const AdminReviewsPage = () => {
 
   useEffect(() => {
     load();
-  }, [token, sort, search]);
+  }, [token, sort, search, page, isSupplier]);
+
+  useEffect(() => {
+    if (loading || page <= totalPages) return;
+    setPage(totalPages);
+  }, [loading, page, totalPages, setPage]);
 
   const openEdit = (review) => {
+    if (isSupplier) return;
     setEditing(review);
     setForm({
       reviewRating: review.reviewRating || 5,
@@ -83,6 +99,7 @@ const AdminReviewsPage = () => {
   const onSubmit = async (event) => {
     event.preventDefault();
     if (!editing) return;
+    if (isSupplier) return;
     setSaving(true);
     setError("");
     setMessage("");
@@ -106,6 +123,7 @@ const AdminReviewsPage = () => {
   };
 
   const onDelete = async (review) => {
+    if (isSupplier) return;
     if (!window.confirm("Delete this review?")) return;
     setError("");
     setMessage("");
@@ -188,20 +206,24 @@ const AdminReviewsPage = () => {
                     {formatDate(review.createdAt) || "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="custom5" onClick={() => openEdit(review)}>
-                        <span className="inline-flex items-center gap-1">
-                          <Pencil className="h-3 w-3" />
-                          Edit
-                        </span>
-                      </Button>
-                      <Button type="button" variant="danger" onClick={() => onDelete(review)}>
-                        <span className="inline-flex items-center gap-1">
-                          <Trash2 className="h-3 w-3" />
-                          Delete
-                        </span>
-                      </Button>
-                    </div>
+                    {isSupplier ? (
+                      <span className="text-zinc-400">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="custom5" onClick={() => openEdit(review)}>
+                          <span className="inline-flex items-center gap-1">
+                            <Pencil className="h-3 w-3" />
+                            Edit
+                          </span>
+                        </Button>
+                        <Button type="button" variant="danger" onClick={() => onDelete(review)}>
+                          <span className="inline-flex items-center gap-1">
+                            <Trash2 className="h-3 w-3" />
+                            Delete
+                          </span>
+                        </Button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -210,7 +232,9 @@ const AdminReviewsPage = () => {
         )}
       </div>
 
-      <AdminModal open={modalOpen} title="Edit review" onClose={closeModal}>
+      <AdminTablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <AdminModal open={!isSupplier && modalOpen} title="Edit review" onClose={closeModal}>
         {editing ? (
           <form onSubmit={onSubmit} className="space-y-4">
             <p className="text-sm text-zinc-600">

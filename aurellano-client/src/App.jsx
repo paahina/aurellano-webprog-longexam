@@ -4,6 +4,7 @@ import Layout from "./layouts/Layout";
 import CustomerLayout from "./layouts/CustomerLayout";
 import AuthLayout from "./layouts/AuthLayout";
 import AdminLayout from "./layouts/AdminLayout";
+import SupplierLayout from "./layouts/SupplierLayout";
 
 import ProductPage from "./pages/LandingPages/ProductPage";
 import HomePage from "./pages/LandingPages/HomePage";
@@ -95,6 +96,23 @@ const routes = [
           { path: "orders", element: <AdminOrdersPage /> },
           { path: "reviews", element: <AdminReviewsPage /> },
           { path: "users", element: <AdminUsersPage /> },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute roles={["supplier"]} />,
+    errorElement: <NotFoundPage />,
+    children: [
+      {
+        path: "supplier",
+        element: <SupplierLayout />,
+        children: [
+          { index: true, element: <OverviewPage /> },
+          { path: "products", element: <AdminProductsPage /> },
+          { path: "orders", element: <AdminOrdersPage /> },
+          { path: "reviews", element: <AdminReviewsPage /> },
+          { path: "profile", element: <ProfilePage /> },
         ],
       },
     ],

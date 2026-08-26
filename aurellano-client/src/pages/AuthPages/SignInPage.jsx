@@ -34,7 +34,8 @@ const SignInPage = () => {
     setSaving(true);
     try {
       const user = await login(form);
-      const fallback = user.userRole === "Admin" ? "/admin" : "/shop";
+      const fallback =
+        user.userRole === "Admin" ? "/admin" : user.userRole === "supplier" ? "/supplier" : "/shop";
       const from = location.state?.from?.pathname;
       navigate(from || fallback, { replace: true });
     } catch (err) {

@@ -10,12 +10,10 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-router.use(protect, authorize("customer", "Admin"));
-
-router.get("/getAllOrders", getOrders);
-router.get("/get/:id", getOrderById);
-router.post("/create", createOrder);
-router.put("/update/:id", updateOrder);
-router.delete("/delete/:id", deleteOrder);
+router.get("/getAllOrders", protect, authorize("customer", "Admin", "supplier"), getOrders);
+router.get("/get/:id", protect, authorize("customer", "Admin", "supplier"), getOrderById);
+router.post("/create", protect, authorize("customer", "Admin"), createOrder);
+router.put("/update/:id", protect, authorize("customer", "Admin", "supplier"), updateOrder);
+router.delete("/delete/:id", protect, authorize("Admin"), deleteOrder);
 
 module.exports = router;

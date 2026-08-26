@@ -2,19 +2,55 @@ const Cart = require("../models/cartModel");
 const { HttpStatus } = require("../config/constants");
 const { isAdmin, forbidIfNotOwner, ownerFilter } = require("../middleware/authMiddleware");
 const { validateCartItems } = require("../utils/stock");
+const { parsePagination, paginatedResponse } = require("../utils/pagination");
 
 const cartPopulate = (query) =>
   query
     .populate("userId", "firstName lastName email")
-    .populate(
-      "cartItems.productId",
-      "productName productPrice productImage productSlug stockQuantity"
-    );
+    .populate({
+      path: "cartItems.productId",
+      select: "productName productPrice productImage productSlug stockQuantity supplierId",
+      populate: { path: "supplierId", select: "supplierName" },
+    });
 
 const getCarts = async (req, res) => {
   try {
     const carts = await cartPopulate(Cart.find(ownerFilter(req)));
-    res.status(HttpStatus.OK).json(carts);
+    const { requested, page, limit, skip } = parsePagination(req.query);
+
+    if (!requested) {
+      return res.status(HttpStatus.OK).json(carts);
+    }
+
+    const cart = carts[0] || null;
+    if (!cart) {
+      return res.status(HttpStatus.OK).json({
+        ...paginatedResponse({ data: [], total: 0, page, limit }),
+        cartId: null,
+        cartTotal: 0,
+        hasBlockedItems: false,
+      });
+    }
+
+    const allItems = cart.cartItems || [];
+    const total = allItems.length;
+    const data = allItems.slice(skip, skip + limit);
+    const cartTotal = allItems.reduce((sum, item) => {
+      const price = item.productId?.productPrice || 0;
+      return sum + price * (item.quantity || 0);
+    }, 0);
+    const hasBlockedItems = allItems.some((item) => {
+      const stock = item.productId?.stockQuantity ?? 0;
+      const quantity = item.quantity ?? 0;
+      return stock <= 0 || quantity > stock;
+    });
+
+    return res.status(HttpStatus.OK).json({
+      ...paginatedResponse({ data, total, page, limit }),
+      cartId: cart._id,
+      cartTotal,
+      hasBlockedItems,
+    });
   } catch (error) {
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message });
   }

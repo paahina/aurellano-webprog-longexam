@@ -7,6 +7,7 @@ const snapshotFromProduct = (product, item) => ({
   quantity: item.quantity,
   productImage: product.productImage || "",
   productSlug: product.productSlug || "",
+  supplierId: product.supplierId,
 });
 
 const enrichOrderItems = async (orderItems = []) => {
@@ -15,15 +16,34 @@ const enrichOrderItems = async (orderItems = []) => {
   return Promise.all(
     orderItems.map(async (item) => {
       const product = await Product.findById(item.productId).select(
-        "productName productPrice productImage productSlug"
+        "productName productPrice productImage productSlug supplierId"
       );
       if (!product) {
         throw new Error("One or more products in this order were not found.");
+      }
+      if (!product.supplierId) {
+        throw new Error(`Product ${product.productName} is missing a supplier.`);
       }
       return snapshotFromProduct(product, item);
     })
   );
 };
+
+const groupOrderItemsBySupplier = (items = []) => {
+  const groups = new Map();
+  items.forEach((item) => {
+    const supplierId = item.supplierId?.toString?.();
+    if (!supplierId) {
+      throw new Error("One or more products are missing a supplier.");
+    }
+    if (!groups.has(supplierId)) groups.set(supplierId, []);
+    groups.get(supplierId).push(item);
+  });
+  return groups;
+};
+
+const toStoredOrderItems = (items = []) =>
+  items.map(({ supplierId, ...item }) => item);
 
 const normalizeOrderItems = (orderItems = []) =>
   orderItems.map((item) => {
@@ -46,6 +66,8 @@ const normalizeOrder = (order) => {
 
 module.exports = {
   enrichOrderItems,
+  groupOrderItemsBySupplier,
+  toStoredOrderItems,
   normalizeOrder,
   normalizeOrderItems,
 };

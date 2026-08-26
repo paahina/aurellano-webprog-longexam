@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 import ListEmptyState from "../../components/Customer/ListEmptyState";
+import ListPagination from "../../components/Customer/ListPagination";
 import ListSkeleton from "../../components/Customer/ListSkeleton";
 import OrderCard from "../../components/Customer/OrderCard";
 import { useAuth } from "../../context/AuthContext";
-import { getOrdersRequest, updateOrderRequest } from "../../services/api";
+import { getOrdersPagedRequest, updateOrderRequest } from "../../services/api";
+
+const PAGE_SIZE = 10;
 
 const toLoadMessage = (err) => {
   const raw = err?.message || "";
@@ -16,10 +20,23 @@ const toLoadMessage = (err) => {
 
 const OrdersPage = () => {
   const { token } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pageParam = Number(searchParams.get("page") || "1");
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+
   const [orders, setOrders] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
+
+  const setPage = (nextPage) => {
+    const clamped = Math.max(1, Number(nextPage) || 1);
+    const next = new URLSearchParams(searchParams);
+    if (clamped <= 1) next.delete("page");
+    else next.set("page", String(clamped));
+    setSearchParams(next);
+  };
 
   const loadOrders = async () => {
     setLoading(true);
@@ -27,10 +44,16 @@ const OrdersPage = () => {
     setError("");
     setOrders([]);
     try {
-      const data = await getOrdersRequest(token, { ongoing: "true" });
-      setOrders(data);
+      const data = await getOrdersPagedRequest(token, {
+        ongoing: "true",
+        page,
+        limit: PAGE_SIZE,
+      });
+      setOrders(data.items);
+      setTotalPages(data.totalPages);
     } catch (err) {
       setOrders([]);
+      setTotalPages(1);
       setLoadError(toLoadMessage(err));
     } finally {
       setLoading(false);
@@ -39,7 +62,12 @@ const OrdersPage = () => {
 
   useEffect(() => {
     loadOrders();
-  }, [token]);
+  }, [token, page]);
+
+  useEffect(() => {
+    if (loading || page <= totalPages) return;
+    setPage(totalPages);
+  }, [loading, page, totalPages]);
 
   const cancelOrder = async (id) => {
     try {
@@ -71,11 +99,19 @@ const OrdersPage = () => {
       ) : null}
 
       {!loading && !loadError && orders.length ? (
-        <div className="mt-4 space-y-4">
-          {orders.map((order) => (
-            <OrderCard key={order._id} order={order} onCancel={cancelOrder} />
-          ))}
-        </div>
+        <>
+          <div className="mt-4 space-y-4">
+            {orders.map((order) => (
+              <OrderCard key={order._id} order={order} onCancel={cancelOrder} />
+            ))}
+          </div>
+          <ListPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            label="Orders pagination"
+          />
+        </>
       ) : null}
     </section>
   );

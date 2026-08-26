@@ -13,7 +13,7 @@ const router = express.Router();
 router.get("/getAllSuppliers", getSuppliers);
 router.get("/get/:id", getSupplierById);
 router.post("/create", protect, authorize("Admin"), createSupplier);
-router.put("/update/:id", protect, authorize("Admin"), updateSupplier);
+router.put("/update/:id", protect, authorize("Admin", "supplier"), updateSupplier);
 router.delete("/delete/:id", protect, authorize("Admin"), deleteSupplier);
 
 module.exports = router;

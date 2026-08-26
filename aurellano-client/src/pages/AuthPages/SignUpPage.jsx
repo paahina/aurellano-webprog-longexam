@@ -18,6 +18,9 @@ const SignUpPage = () => {
     lastName: "",
     email: "",
     password: "",
+    userRole: "customer",
+    supplierName: "",
+    supplierDescription: "",
   });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -131,6 +134,47 @@ const SignUpPage = () => {
             className={inputClasses}
           />
         </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="signup-role" className="text-sm font-medium text-secondary">
+            Account type
+          </label>
+          <select
+            id="signup-role"
+            name="userRole"
+            value={form.userRole}
+            onChange={onChange}
+            className="mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm text-zinc-900 outline-none"
+          >
+            <option value="customer">customer</option>
+            <option value="supplier">supplier</option>
+          </select>
+        </div>
+
+        {form.userRole === "supplier" ? (
+          <div className="grid gap-5 sm:grid-cols-2 sm:col-span-2">
+            <label>
+              <span className="text-sm font-medium text-secondary">Supplier name</span>
+              <input
+                name="supplierName"
+                value={form.supplierName}
+                onChange={onChange}
+                required
+                className={inputClasses}
+              />
+            </label>
+            <label>
+              <span className="text-sm font-medium text-secondary">Supplier description</span>
+              <textarea
+                name="supplierDescription"
+                value={form.supplierDescription}
+                onChange={onChange}
+                required
+                className={`${inputClasses} min-h-28`}
+              />
+            </label>
+          </div>
+        ) : null}
 
         <Button type="submit" variant="custom2" className={actionButtonClassName} disabled={saving}>
           {saving ? "Creating account..." : "Create Account"}

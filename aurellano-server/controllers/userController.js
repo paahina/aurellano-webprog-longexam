@@ -1,10 +1,12 @@
 const User = require("../models/userModel");
+const Supplier = require("../models/supplierModel");
 const { HttpStatus } = require("../config/constants");
 const { generateToken } = require("../utils/jwt");
 const { JWT_EXPIRES_IN } = require("../config/config");
 const { blacklistToken } = require("../middleware/tokenBlacklist");
 const { isAdmin, forbidIfNotOwner } = require("../middleware/authMiddleware");
 const { buildUserSort } = require("../utils/listSort");
+const { parsePagination, paginatedResponse } = require("../utils/pagination");
 
 const toPublicUser = (user) => {
   const userObj = user.toObject();
@@ -15,7 +17,25 @@ const toPublicUser = (user) => {
 const getUsers = async (req, res) => {
   try {
     const sortOption = buildUserSort(req.query.sort);
-    const users = await User.find().select("-password").sort(sortOption);
+    const { requested, page, limit, skip } = parsePagination(req.query);
+
+    if (requested) {
+      const [total, users] = await Promise.all([
+        User.countDocuments(),
+        User.find()
+          .select("-password")
+          .populate("supplierId", "supplierName supplierDescription")
+          .sort(sortOption)
+          .skip(skip)
+          .limit(limit),
+      ]);
+      return res.status(HttpStatus.OK).json(paginatedResponse({ data: users, total, page, limit }));
+    }
+
+    const users = await User.find()
+      .select("-password")
+      .populate("supplierId", "supplierName supplierDescription")
+      .sort(sortOption);
     res.status(HttpStatus.OK).json(users);
   } catch (error) {
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message });
@@ -24,7 +44,7 @@ const getUsers = async (req, res) => {
 
 const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
+    const user = await User.findById(req.params.id).select("-password").populate("supplierId", "supplierName supplierDescription");
     if (!user) return res.status(HttpStatus.NOT_FOUND).json({ message: "User not found" });
     if (forbidIfNotOwner(user._id, req, res)) return;
     res.status(HttpStatus.OK).json(user);
@@ -35,13 +55,42 @@ const getUserById = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      userRole = "customer",
+      supplierName,
+      supplierDescription,
+    } = req.body;
+
+    if (userRole !== "customer" && userRole !== "supplier") {
+      return res.status(HttpStatus.BAD_REQUEST).json({ message: "Invalid user role" });
+    }
+
+    const supplierFieldsNeeded = userRole === "supplier";
+    if (supplierFieldsNeeded && (!supplierName || !supplierDescription)) {
+      return res
+        .status(HttpStatus.BAD_REQUEST)
+        .json({ message: "Supplier name and description are required for supplier accounts" });
+    }
+
+    let supplier = null;
+    if (userRole === "supplier") {
+      supplier = await Supplier.create({
+        supplierName,
+        supplierDescription,
+      });
+    }
+
     const user = await User.create({
       firstName,
       lastName,
       email,
       password,
-      userRole: "customer",
+      userRole,
+      supplierId: supplier ? supplier._id : undefined,
       isActive: true,
     });
     const token = generateToken(user);
@@ -50,6 +99,63 @@ const createUser = async (req, res) => {
       token,
       user: toPublicUser(user),
     });
+  } catch (error) {
+    res.status(HttpStatus.BAD_REQUEST).json({ message: error.message });
+  }
+};
+
+const createUserByAdmin = async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      userRole = "customer",
+      isActive = true,
+      supplierName,
+      supplierDescription,
+    } = req.body;
+
+    if (!["customer", "supplier", "Admin"].includes(userRole)) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ message: "Invalid user role" });
+    }
+
+    if (!password || String(password).length < 6) {
+      return res
+        .status(HttpStatus.BAD_REQUEST)
+        .json({ message: "Password must be at least 6 characters" });
+    }
+
+    if (userRole === "supplier" && (!supplierName || !supplierDescription)) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        message: "Supplier name and description are required for supplier accounts",
+      });
+    }
+
+    let supplier = null;
+    if (userRole === "supplier") {
+      supplier = await Supplier.create({
+        supplierName,
+        supplierDescription,
+      });
+    }
+
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      password,
+      userRole,
+      supplierId: supplier ? supplier._id : undefined,
+      isActive: userRole === "Admin" ? true : Boolean(isActive),
+    });
+
+    const populated = await User.findById(user._id)
+      .select("-password")
+      .populate("supplierId", "supplierName supplierDescription");
+
+    res.status(HttpStatus.CREATED).json(populated);
   } catch (error) {
     res.status(HttpStatus.BAD_REQUEST).json({ message: error.message });
   }
@@ -119,7 +225,17 @@ const updateUser = async (req, res) => {
     if (!user) return res.status(HttpStatus.NOT_FOUND).json({ message: "User not found" });
     if (forbidIfNotOwner(user._id, req, res)) return;
 
-    const { currentPassword, password, firstName, lastName, email, userRole, isActive } = req.body;
+    const {
+      currentPassword,
+      password,
+      firstName,
+      lastName,
+      email,
+      userRole,
+      isActive,
+      supplierName,
+      supplierDescription,
+    } = req.body;
 
     if (password) {
       if (!isAdmin(req)) {
@@ -137,8 +253,32 @@ const updateUser = async (req, res) => {
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (email !== undefined) user.email = email;
+    const previousRole = user.userRole;
     if (isAdmin(req) && userRole !== undefined && user.userRole !== "Admin") {
       user.userRole = userRole;
+    }
+
+    if (isAdmin(req) && userRole !== undefined && previousRole !== "Admin") {
+      if (userRole === "supplier") {
+        if (!supplierName || !supplierDescription) {
+          return res.status(HttpStatus.BAD_REQUEST).json({
+            message: "Supplier name and description are required when setting user as supplier",
+          });
+        }
+
+        if (user.supplierId) {
+          await Supplier.findByIdAndUpdate(
+            user.supplierId,
+            { supplierName, supplierDescription },
+            { new: true, runValidators: true }
+          );
+        } else {
+          const supplier = await Supplier.create({ supplierName, supplierDescription });
+          user.supplierId = supplier._id;
+        }
+      } else if (userRole === "customer") {
+        user.supplierId = undefined;
+      }
     }
 
     if (isActive !== undefined) {
@@ -172,6 +312,7 @@ module.exports = {
   getUsers,
   getUserById,
   createUser,
+  createUserByAdmin,
   loginUser,
   logoutUser,
   getSession,
