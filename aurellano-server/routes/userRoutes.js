@@ -15,7 +15,7 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 router.post("/login", loginUser);
-router.post("/create", createUser);
+router.post("/register", createUser);
 router.post("/logout", protect, logoutUser);
 router.get("/session", protect, getSession);
 router.get("/getAllUsers", protect, authorize("Admin"), getUsers);

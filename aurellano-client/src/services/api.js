@@ -37,7 +37,7 @@ export const loginRequest = (credentials) =>
   apiRequest("/api/users/login", { method: "POST", body: credentials });
 
 export const signupRequest = (payload) =>
-  apiRequest("/api/users/create", { method: "POST", body: payload });
+  apiRequest("/api/users/register", { method: "POST", body: payload });
 
 export const logoutRequest = (token) =>
   apiRequest("/api/users/logout", { method: "POST", token });
