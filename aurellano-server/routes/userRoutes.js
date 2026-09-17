@@ -15,19 +15,21 @@ const {
   registerValidation,
   loginValidation,
   updateUserValidation,
+  mongoIdParamValidation,
 } = require("../middleware/validationMiddleware");
-const { loginLimiter } = require("../middleware/rateLimiterMiddleware");
+const { loginLimiter, registerLimiter } = require("../middleware/rateLimiterMiddleware");
+const loginLockoutMiddleware = require("../middleware/loginLockoutMiddleware");
 
 const router = express.Router();
 
-router.post("/login", loginLimiter, loginValidation, loginUser);
-router.post("/register", registerValidation, createUser);
+router.post("/login", loginLimiter, loginValidation, loginLockoutMiddleware, loginUser);
+router.post("/register", registerLimiter, registerValidation, createUser);
 router.post("/logout", protect, logoutUser);
 router.get("/session", protect, getSession);
 router.get("/getAllUsers", protect, authorize("Admin"), getUsers);
 router.post("/adminCreate", protect, authorize("Admin"), registerValidation, createUserByAdmin);
-router.get("/get/:id", protect, getUserById);
-router.put("/update/:id", protect, updateUserValidation, updateUser);
-router.delete("/delete/:id", protect, authorize("Admin"), deleteUser);
+router.get("/get/:id", protect, mongoIdParamValidation, getUserById);
+router.put("/update/:id", protect, mongoIdParamValidation, updateUserValidation, updateUser);
+router.delete("/delete/:id", protect, authorize("Admin"), mongoIdParamValidation, deleteUser);
 
 module.exports = router;

@@ -7,13 +7,42 @@ const {
   deleteOrder,
 } = require("../controllers/ordersController");
 const { protect, authorize } = require("../middleware/authMiddleware");
+const { createOrderValidation, mongoIdParamValidation } = require("../middleware/validationMiddleware");
+const { writeApiLimiter } = require("../middleware/rateLimiterMiddleware");
 
 const router = express.Router();
 
 router.get("/getAllOrders", protect, authorize("customer", "Admin", "supplier"), getOrders);
-router.get("/get/:id", protect, authorize("customer", "Admin", "supplier"), getOrderById);
-router.post("/create", protect, authorize("customer", "Admin"), createOrder);
-router.put("/update/:id", protect, authorize("customer", "Admin", "supplier"), updateOrder);
-router.delete("/delete/:id", protect, authorize("Admin"), deleteOrder);
+router.get(
+  "/get/:id",
+  protect,
+  authorize("customer", "Admin", "supplier"),
+  mongoIdParamValidation,
+  getOrderById,
+);
+router.post(
+  "/create",
+  writeApiLimiter,
+  protect,
+  authorize("customer", "Admin"),
+  createOrderValidation,
+  createOrder,
+);
+router.put(
+  "/update/:id",
+  writeApiLimiter,
+  protect,
+  authorize("customer", "Admin", "supplier"),
+  mongoIdParamValidation,
+  updateOrder,
+);
+router.delete(
+  "/delete/:id",
+  writeApiLimiter,
+  protect,
+  authorize("Admin"),
+  mongoIdParamValidation,
+  deleteOrder,
+);
 
 module.exports = router;

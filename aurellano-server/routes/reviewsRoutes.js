@@ -8,6 +8,12 @@ const {
   deleteReview,
 } = require("../controllers/reviewsController");
 const { protect, authorize } = require("../middleware/authMiddleware");
+const {
+  reviewValidation,
+  reviewUpdateValidation,
+  mongoIdParamValidation,
+} = require("../middleware/validationMiddleware");
+const { writeApiLimiter } = require("../middleware/rateLimiterMiddleware");
 
 const router = express.Router();
 
@@ -24,9 +30,31 @@ router.get(
   authorize("customer", "Admin"),
   getReviewable
 );
-router.get("/get/:id", getReviewById);
-router.post("/create", protect, authorize("customer", "Admin"), createReview);
-router.put("/update/:id", protect, authorize("customer", "Admin"), updateReview);
-router.delete("/delete/:id", protect, authorize("customer", "Admin"), deleteReview);
+router.get("/get/:id", mongoIdParamValidation, getReviewById);
+router.post(
+  "/create",
+  writeApiLimiter,
+  protect,
+  authorize("customer", "Admin"),
+  reviewValidation,
+  createReview,
+);
+router.put(
+  "/update/:id",
+  writeApiLimiter,
+  protect,
+  authorize("customer", "Admin"),
+  mongoIdParamValidation,
+  reviewUpdateValidation,
+  updateReview,
+);
+router.delete(
+  "/delete/:id",
+  writeApiLimiter,
+  protect,
+  authorize("customer", "Admin"),
+  mongoIdParamValidation,
+  deleteReview,
+);
 
 module.exports = router;

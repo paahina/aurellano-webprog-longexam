@@ -7,13 +7,41 @@ const {
   deleteCategory,
 } = require("../controllers/categoryController");
 const { protect, authorize } = require("../middleware/authMiddleware");
+const {
+  categoryValidation,
+  categoryUpdateValidation,
+  mongoIdParamValidation,
+} = require("../middleware/validationMiddleware");
+const { writeApiLimiter } = require("../middleware/rateLimiterMiddleware");
 
 const router = express.Router();
 
 router.get("/getAllCategories", getCategories);
-router.get("/get/:id", getCategoryById);
-router.post("/create", protect, authorize("Admin"), createCategory);
-router.put("/update/:id", protect, authorize("Admin"), updateCategory);
-router.delete("/delete/:id", protect, authorize("Admin"), deleteCategory);
+router.get("/get/:id", mongoIdParamValidation, getCategoryById);
+router.post(
+  "/create",
+  writeApiLimiter,
+  protect,
+  authorize("Admin"),
+  categoryValidation,
+  createCategory,
+);
+router.put(
+  "/update/:id",
+  writeApiLimiter,
+  protect,
+  authorize("Admin"),
+  mongoIdParamValidation,
+  categoryUpdateValidation,
+  updateCategory,
+);
+router.delete(
+  "/delete/:id",
+  writeApiLimiter,
+  protect,
+  authorize("Admin"),
+  mongoIdParamValidation,
+  deleteCategory,
+);
 
 module.exports = router;

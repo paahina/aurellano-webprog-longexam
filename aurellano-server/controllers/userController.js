@@ -7,6 +7,7 @@ const { blacklistToken } = require("../middleware/tokenBlacklist");
 const { isAdmin, forbidIfNotOwner } = require("../middleware/authMiddleware");
 const { buildUserSort } = require("../utils/listSort");
 const { parsePagination, paginatedResponse } = require("../utils/pagination");
+const { recordFailedLogin, clearLoginAttempts } = require("../utils/loginLockout");
 
 const toPublicUser = (user) => {
   const userObj = user.toObject();
@@ -169,20 +170,25 @@ const loginUser = async (req, res) => {
       return res.status(HttpStatus.BAD_REQUEST).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
+      recordFailedLogin(normalizedEmail);
       return res.status(HttpStatus.UNAUTHORIZED).json({ message: "Invalid email or password" });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      recordFailedLogin(normalizedEmail);
       return res.status(HttpStatus.UNAUTHORIZED).json({ message: "Invalid email or password" });
     }
 
     if (user.isActive === false) {
+      recordFailedLogin(normalizedEmail);
       return res.status(HttpStatus.UNAUTHORIZED).json({ message: "Account is inactive" });
     }
 
+    clearLoginAttempts(normalizedEmail);
     const token = generateToken(user, rememberMe ? "7d" : JWT_EXPIRES_IN);
     res.status(HttpStatus.OK).json({
       message: "Login successful",
