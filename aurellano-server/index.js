@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const multer = require("multer");
 const { PORT } = require("./config/config");
 const connectDB = require("./config/db");
 const { auditLoggerMiddleware } = require("./middleware/auditLoggerMiddleware");
@@ -81,6 +82,21 @@ app.use("/api/reviews", reviewsRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        success: false,
+        message: "Image file too large. Maximum size is 5MB.",
+      });
+    }
+    return res.status(400).json({ success: false, message: err.message });
+  }
+
+  if (err.message === "Only image files are allowed.") {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+
   if (err.message?.startsWith("CORS blocked")) {
     return res.status(403).json({ message: err.message });
   }

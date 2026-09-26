@@ -6,6 +6,7 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadProductImage,
 } = require("../controllers/productController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 const {
@@ -14,6 +15,7 @@ const {
   mongoIdParamValidation,
 } = require("../middleware/validationMiddleware");
 const { writeApiLimiter } = require("../middleware/rateLimiterMiddleware");
+const upload = require("../middleware/uploadImageMiddleware");
 
 const router = express.Router();
 
@@ -76,6 +78,16 @@ router.delete(
   authorize("Admin", "supplier"),
   mongoIdParamValidation,
   deleteProduct,
+);
+
+router.post(
+  "/:id/upload-image",
+  writeApiLimiter,
+  protect,
+  authorize("Admin", "supplier"),
+  mongoIdParamValidation,
+  upload.single("image"),
+  uploadProductImage,
 );
 
 module.exports = router;

@@ -3,6 +3,7 @@ const Category = require("../models/categoryModel");
 const Supplier = require("../models/supplierModel");
 const { HttpStatus } = require("../config/constants");
 const { normalizeProductPayload } = require("../utils/stock");
+const cloudinary = require("../config/cloudinary");
 
 const sendResponse = (res, status, success, message, data = []) => {
   const list = Array.isArray(data) ? data : data ? [data] : [];
@@ -368,6 +369,53 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+const uploadProductImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        message: "No image file provided. Use form-data field name \"image\".",
+      });
+    }
+
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(HttpStatus.NOT_FOUND).json({
+        success: false,
+        message: "Product not found.",
+      });
+    }
+
+    if (req.user?.userRole === "supplier" && req.user.supplierId) {
+      if (product.supplierId.toString() !== req.user.supplierId.toString()) {
+        return res.status(HttpStatus.FORBIDDEN).json({
+          success: false,
+          message: "You do not have permission to upload an image for this product",
+        });
+      }
+    }
+
+    const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: "bulldogs-exchange/products",
+    });
+
+    product.productImage = result.secure_url;
+    await product.save();
+
+    return res.status(HttpStatus.OK).json({
+      success: true,
+      imageUrl: result.secure_url,
+      publicId: result.public_id,
+    });
+  } catch (error) {
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getProducts,
   getProductById,
@@ -375,4 +423,5 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadProductImage,
 };
