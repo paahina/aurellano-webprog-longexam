@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Package, Pencil, Plus, Trash2 } from "lucide-react";
 import AdminModal from "../../components/Admin/AdminModal";
 import AdminTablePagination from "../../components/Admin/AdminTablePagination";
@@ -9,8 +9,10 @@ import AdminTableToolbar, {
 } from "../../components/Admin/AdminTableToolbar";
 import StockStatusChip from "../../components/Admin/StockStatusChip";
 import Button from "../../components/Button";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import ProductImage from "../../components/ProductImage";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { useAdminTableQuery } from "../../hooks/useAdminTableQuery";
 import {
   createProductRequest,
@@ -25,13 +27,14 @@ import { formatPeso, getId } from "../../utils/format";
 import { deriveStockStatus } from "../../utils/stock";
 
 const PAGE_SIZE = 10;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const emptyForm = {
   productName: "",
   productSlug: "",
   productDescription: "",
   productPrice: "",
-  productImage: "",
   categoryId: "",
   supplierId: "",
   stockQuantity: "0",
@@ -47,20 +50,39 @@ const slugify = (value) =>
 const inputClass =
   "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none";
 
+const formsEqual = (a, b) =>
+  a.productName === b.productName &&
+  a.productSlug === b.productSlug &&
+  a.productDescription === b.productDescription &&
+  a.productPrice === b.productPrice &&
+  a.categoryId === b.categoryId &&
+  a.supplierId === b.supplierId &&
+  a.stockQuantity === b.stockQuantity;
+
 const AdminProductsPage = () => {
   const { token, user } = useAuth();
+  const { showToast } = useToast();
   const isSupplier = user?.userRole === "supplier";
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [initialForm, setInitialForm] = useState(emptyForm);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const [existingImage, setExistingImage] = useState("");
+  const [removeImage, setRemoveImage] = useState(false);
+  const [imageError, setImageError] = useState("");
   const [saving, setSaving] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const fileInputRef = useRef(null);
   const { sort, page, setSort, setPage } = useAdminTableQuery(
     "az",
     PRODUCT_SORT_OPTIONS.map((option) => option.value)
@@ -68,7 +90,6 @@ const AdminProductsPage = () => {
 
   const load = async () => {
     setLoading(true);
-    setError("");
     try {
       const query = {
         page,
@@ -87,7 +108,7 @@ const AdminProductsPage = () => {
       setCategories(Array.isArray(categoryList) ? categoryList : categoryList?.data || []);
       setSuppliers(Array.isArray(supplierList) ? supplierList : supplierList?.data || []);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
       setProducts([]);
       setTotalPages(1);
     } finally {
@@ -104,38 +125,81 @@ const AdminProductsPage = () => {
     setPage(totalPages);
   }, [loading, page, totalPages, setPage]);
 
-  const openCreate = () => {
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  const clearImageSelection = () => {
+    if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+    setImageFile(null);
+    setImagePreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const resetModalState = () => {
+    clearImageSelection();
+    setExistingImage("");
+    setRemoveImage(false);
+    setImageError("");
     setEditing(null);
-    setForm({
+    setForm(emptyForm);
+    setInitialForm(emptyForm);
+    setModalOpen(false);
+    setDiscardOpen(false);
+  };
+
+  const isDirty = () => {
+    if (!formsEqual(form, initialForm)) return true;
+    if (imageFile || removeImage) return true;
+    return false;
+  };
+
+  const openCreate = () => {
+    const nextForm = {
       ...emptyForm,
       supplierId: isSupplier ? getId(user?.supplierId) : emptyForm.supplierId,
-    });
+    };
+    setEditing(null);
+    setForm(nextForm);
+    setInitialForm(nextForm);
+    clearImageSelection();
+    setExistingImage("");
+    setRemoveImage(false);
+    setImageError("");
     setModalOpen(true);
-    setMessage("");
-    setError("");
+    setFormError("");
   };
 
   const openEdit = (product) => {
-    setEditing(product);
-    setForm({
+    const nextForm = {
       productName: product.productName || "",
       productSlug: product.productSlug || "",
       productDescription: product.productDescription || "",
       productPrice: String(product.productPrice ?? ""),
-      productImage: product.productImage || "",
       categoryId: getId(product.categoryId),
       supplierId: getId(product.supplierId),
       stockQuantity: String(product.stockQuantity ?? 0),
-    });
+    };
+    setEditing(product);
+    setForm(nextForm);
+    setInitialForm(nextForm);
+    clearImageSelection();
+    setExistingImage(product.productImage || "");
+    setRemoveImage(false);
+    setImageError("");
     setModalOpen(true);
-    setMessage("");
-    setError("");
+    setFormError("");
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditing(null);
-    setForm(emptyForm);
+  const requestCloseModal = () => {
+    if (saving) return;
+    if (isDirty()) {
+      setDiscardOpen(true);
+      return;
+    }
+    resetModalState();
   };
 
   const onChange = (event) => {
@@ -149,52 +213,89 @@ const AdminProductsPage = () => {
     });
   };
 
+  const onImageChange = (event) => {
+    const file = event.target.files?.[0];
+    setImageError("");
+    if (!file) {
+      clearImageSelection();
+      return;
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImageError("Only JPEG, PNG, or WebP images are allowed.");
+      clearImageSelection();
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError("Image file too large. Maximum size is 5MB.");
+      clearImageSelection();
+      return;
+    }
+
+    if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setRemoveImage(false);
+  };
+
+  const onRemoveImage = () => {
+    clearImageSelection();
+    setImageError("");
+    if (existingImage) setRemoveImage(true);
+  };
+
   const onSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
-    setError("");
-    setMessage("");
-    const payload = {
-      productName: form.productName.trim(),
-      productSlug: form.productSlug.trim() || slugify(form.productName),
-      productDescription: form.productDescription.trim(),
-      productPrice: Number(form.productPrice),
-      productImage: form.productImage.trim(),
-      categoryId: form.categoryId,
-      supplierId: form.supplierId,
-      stockQuantity: Number(form.stockQuantity),
-    };
+    setFormError("");
+    setImageError("");
+
+    const formData = new FormData();
+    formData.append("productName", form.productName.trim());
+    formData.append("productSlug", form.productSlug.trim() || slugify(form.productName));
+    formData.append("productDescription", form.productDescription.trim());
+    formData.append("productPrice", String(Number(form.productPrice)));
+    formData.append("categoryId", form.categoryId);
+    formData.append("supplierId", form.supplierId);
+    formData.append("stockQuantity", String(Number(form.stockQuantity)));
+    if (imageFile) formData.append("image", imageFile);
+    else if (editing && removeImage) formData.append("removeImage", "true");
+
     try {
       if (editing) {
-        await updateProductRequest(editing._id, payload, token);
-        setMessage("Product updated.");
+        await updateProductRequest(editing._id, formData, token);
+        showToast("Product updated.", "success");
       } else {
-        await createProductRequest(payload, token);
-        setMessage("Product created.");
+        await createProductRequest(formData, token);
+        showToast("Product created.", "success");
       }
-      closeModal();
+      resetModalState();
       await load();
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const onDelete = async (product) => {
-    if (!window.confirm(`Delete "${product.productName}"?`)) return;
-    setError("");
-    setMessage("");
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteProductRequest(product._id, token);
-      setMessage("Product deleted.");
+      await deleteProductRequest(deleteTarget._id, token);
+      showToast("Product deleted.", "success");
+      setDeleteTarget(null);
       await load();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
   const rows = useMemo(() => products, [products]);
+  const previewSrc = imagePreview || (removeImage ? "" : existingImage);
 
   return (
     <div>
@@ -215,9 +316,6 @@ const AdminProductsPage = () => {
           </span>
         </Button>
       </div>
-
-      {message ? <p className="mt-4 text-sm text-green-700">{message}</p> : null}
-      {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
 
       <AdminTableToolbar
         sort={sort}
@@ -275,7 +373,7 @@ const AdminProductsPage = () => {
                           Edit
                         </span>
                       </Button>
-                      <Button type="button" variant="danger" onClick={() => onDelete(product)}>
+                      <Button type="button" variant="danger" onClick={() => setDeleteTarget(product)}>
                         <span className="inline-flex items-center gap-1">
                           <Trash2 className="h-3 w-3" />
                           Delete
@@ -301,10 +399,11 @@ const AdminProductsPage = () => {
       <AdminModal
         open={modalOpen}
         title={editing ? "Edit product" : "Create product"}
-        onClose={closeModal}
+        onClose={requestCloseModal}
         wide
       >
         <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+          {formError ? <p className="text-sm text-red-700 sm:col-span-2">{formError}</p> : null}
           <label className="text-sm sm:col-span-2">
             Name
             <input name="productName" value={form.productName} onChange={onChange} required className={inputClass} />
@@ -337,25 +436,38 @@ const AdminProductsPage = () => {
             />
           </label>
           <div className="text-sm sm:col-span-2">
-            <span>Image URL <span className="text-zinc-500">(optional)</span></span>
+            <span>
+              Product image <span className="text-zinc-500">(optional)</span>
+            </span>
             <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-start">
               <input
-                name="productImage"
-                value={form.productImage}
-                onChange={onChange}
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={onImageChange}
                 className={`${inputClass} mt-0 sm:flex-1`}
-                placeholder="https://..."
               />
-              <div className="shrink-0 overflow-hidden rounded-xl bg-zinc-200">
-                <ProductImage
-                  key={form.productImage.trim()}
-                  src={form.productImage.trim()}
-                  alt={form.productName || "Product preview"}
-                  className="aspect-square w-[7.5rem] object-cover"
-                  iconClassName="h-8 w-8"
-                />
+              <div className="flex shrink-0 flex-col items-start gap-2">
+                <div className="overflow-hidden rounded-xl bg-zinc-200">
+                  <ProductImage
+                    key={previewSrc || "empty"}
+                    src={previewSrc}
+                    alt={form.productName || "Product preview"}
+                    className="aspect-square w-[7.5rem] object-cover"
+                    iconClassName="h-8 w-8"
+                  />
+                </div>
+                {previewSrc ? (
+                  <Button type="button" variant="danger" onClick={onRemoveImage} disabled={saving}>
+                    Remove image
+                  </Button>
+                ) : null}
               </div>
             </div>
+            {removeImage ? (
+              <p className="mt-2 text-xs text-zinc-500">The current image will be removed when you save.</p>
+            ) : null}
+            {imageError ? <p className="mt-2 text-sm text-red-700">{imageError}</p> : null}
           </div>
           <label className="text-sm">
             Category
@@ -410,12 +522,38 @@ const AdminProductsPage = () => {
             <Button type="submit" variant="custom2" disabled={saving}>
               {saving ? "Saving..." : editing ? "Save changes" : "Create"}
             </Button>
-            <Button type="button" variant="custom5" onClick={closeModal}>
+            <Button type="button" variant="custom5" onClick={requestCloseModal} disabled={saving}>
               Cancel
             </Button>
           </div>
         </form>
       </AdminModal>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete product"
+        message={
+          deleteTarget
+            ? `Delete "${deleteTarget.productName}"? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Yes"
+        cancelLabel="No"
+        loading={deleting}
+        onCancel={() => (deleting ? null : setDeleteTarget(null))}
+        onConfirm={confirmDelete}
+      />
+
+      <ConfirmDialog
+        open={discardOpen}
+        title="Discard changes"
+        message="You have unsaved changes. Discard them and close?"
+        confirmLabel="Yes"
+        cancelLabel="No"
+        confirmVariant="danger"
+        onCancel={() => setDiscardOpen(false)}
+        onConfirm={resetModalState}
+      />
     </div>
   );
 };

@@ -24,6 +24,19 @@ export const apiRequest = async (path, { method = "GET", body, token } = {}) => 
   return parseResponse(response);
 };
 
+export const apiFormRequest = async (path, { method = "POST", formData, token } = {}) => {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers,
+    body: formData,
+  });
+
+  return parseResponse(response);
+};
+
 const withQuery = (path, query = {}) => {
   const params = new URLSearchParams();
   Object.entries(query).forEach(([key, value]) => {
@@ -273,11 +286,23 @@ export const updateOrderRequest = (id, payload, token) =>
 export const deleteOrderRequest = (id, token) =>
   apiRequest(`/api/orders/delete/${id}`, { method: "DELETE", token });
 
-export const createProductRequest = (payload, token) =>
-  apiRequest("/api/products/create", { method: "POST", body: payload, token });
+export const createProductRequest = (payload, token) => {
+  if (payload instanceof FormData) {
+    return apiFormRequest("/api/products/create", { method: "POST", formData: payload, token });
+  }
+  return apiRequest("/api/products/create", { method: "POST", body: payload, token });
+};
 
-export const updateProductRequest = (id, payload, token) =>
-  apiRequest(`/api/products/update/${id}`, { method: "PUT", body: payload, token });
+export const updateProductRequest = (id, payload, token) => {
+  if (payload instanceof FormData) {
+    return apiFormRequest(`/api/products/update/${id}`, {
+      method: "PUT",
+      formData: payload,
+      token,
+    });
+  }
+  return apiRequest(`/api/products/update/${id}`, { method: "PUT", body: payload, token });
+};
 
 export const deleteProductRequest = (id, token) =>
   apiRequest(`/api/products/delete/${id}`, { method: "DELETE", token });

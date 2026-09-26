@@ -12,6 +12,7 @@ const productSchema = new mongoose.Schema(
       required: true,
     },
     productImage: { type: String, default: "", trim: true },
+    productImagePublicId: { type: String, default: "", trim: true },
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Supplier",

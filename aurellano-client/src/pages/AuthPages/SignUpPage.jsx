@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 
 const inputClasses =
   "mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:bg-zinc-50";
@@ -12,6 +13,7 @@ const actionButtonClassName =
 
 const SignUpPage = () => {
   const { signup } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     firstName: "",
@@ -22,7 +24,7 @@ const SignUpPage = () => {
     supplierName: "",
     supplierDescription: "",
   });
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const onChange = (event) => {
@@ -32,16 +34,14 @@ const SignUpPage = () => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    setError("");
+    setFormError("");
     setSaving(true);
     try {
       await signup(form);
-      navigate("/auth/signin", {
-        replace: true,
-        state: { message: "Account created. Please sign in." },
-      });
+      showToast("Account created. Please sign in.", "success");
+      navigate("/auth/signin", { replace: true });
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setSaving(false);
     }
@@ -62,9 +62,8 @@ const SignUpPage = () => {
         Create a store account for faster checkout, order updates, and pickup
         details.
       </p>
-      {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
-
       <form className="mt-8 space-y-5" onSubmit={onSubmit}>
+        {formError ? <p className="text-sm text-red-300">{formError}</p> : null}
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="first-name" className="text-sm font-medium text-secondary">

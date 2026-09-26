@@ -4,6 +4,7 @@ import { KeyRound, LogOut, User } from "lucide-react";
 import Button from "../../components/Button";
 import ProfileSkeleton from "../../components/Customer/ProfileSkeleton";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import {
   getSupplierByIdRequest,
   updateSupplierRequest,
@@ -15,6 +16,7 @@ const inputClasses =
 
 const ProfilePage = () => {
   const { user, setUser, token, logout, loading } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [profile, setProfile] = useState({
     firstName: "",
@@ -25,8 +27,9 @@ const ProfilePage = () => {
     currentPassword: "",
     password: "",
   });
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [supplierError, setSupplierError] = useState("");
   const [saving, setSaving] = useState(false);
   const [supplierProfile, setSupplierProfile] = useState({
     supplierName: "",
@@ -58,7 +61,7 @@ const ProfilePage = () => {
           supplierDescription: supplier.supplierDescription || "",
         });
       } catch (err) {
-        if (!cancelled) setError(err.message);
+        if (!cancelled) showToast(err.message, "error");
       } finally {
         if (!cancelled) setSupplierLoading(false);
       }
@@ -71,14 +74,13 @@ const ProfilePage = () => {
 
   const saveSupplierProfile = async (event) => {
     event.preventDefault();
-    setMessage("");
-    setError("");
+    setSupplierError("");
     setSupplierSaving(true);
     try {
       await updateSupplierRequest(user.supplierId, supplierProfile, token);
-      setMessage("Supplier updated.");
+      showToast("Supplier updated.", "success");
     } catch (err) {
-      setError(err.message);
+      setSupplierError(err.message);
     } finally {
       setSupplierSaving(false);
     }
@@ -86,15 +88,14 @@ const ProfilePage = () => {
 
   const saveProfile = async (event) => {
     event.preventDefault();
-    setMessage("");
-    setError("");
+    setProfileError("");
     setSaving(true);
     try {
       const updated = await updateUserRequest(user._id, profile, token);
       setUser(updated);
-      setMessage("Profile updated.");
+      showToast("Profile updated.", "success");
     } catch (err) {
-      setError(err.message);
+      setProfileError(err.message);
     } finally {
       setSaving(false);
     }
@@ -102,16 +103,15 @@ const ProfilePage = () => {
 
   const savePassword = async (event) => {
     event.preventDefault();
-    setMessage("");
-    setError("");
+    setPasswordError("");
     setSaving(true);
     try {
       const updated = await updateUserRequest(user._id, passwords, token);
       setUser(updated);
       setPasswords({ currentPassword: "", password: "" });
-      setMessage("Password updated.");
+      showToast("Password updated.", "success");
     } catch (err) {
-      setError(err.message);
+      setPasswordError(err.message);
     } finally {
       setSaving(false);
     }
@@ -135,14 +135,12 @@ const ProfilePage = () => {
         <User className="h-8 w-8" strokeWidth={2} />
         Profile
       </h1>
-      {message ? <p className="mt-4 text-sm text-green-700">{message}</p> : null}
-      {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
-
       <form onSubmit={saveProfile} className="mt-6 rounded-3xl bg-zinc-100 p-6">
         <h2 className="flex items-center gap-2 text-xl font-semibold text-primary">
           <User className="h-5 w-5" strokeWidth={2} />
           Your information
         </h2>
+        {profileError ? <p className="mt-4 text-sm text-red-700">{profileError}</p> : null}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="text-sm">
             First name
@@ -184,6 +182,7 @@ const ProfilePage = () => {
             <User className="h-5 w-5" strokeWidth={2} />
             Supplier brand/company info
           </h2>
+          {supplierError ? <p className="mt-4 text-sm text-red-700">{supplierError}</p> : null}
           <label className="mt-4 block text-sm">
             Supplier name
             <input
@@ -228,6 +227,7 @@ const ProfilePage = () => {
           <KeyRound className="h-5 w-5" strokeWidth={2} />
           Change password
         </h2>
+        {passwordError ? <p className="mt-4 text-sm text-red-700">{passwordError}</p> : null}
         <label className="mt-4 block text-sm">
           Current password
           <input

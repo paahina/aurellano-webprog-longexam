@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import Button from "../../components/Button.jsx";
 import ProductList from "../../components/ProductList.jsx";
+import { useToast } from "../../context/ToastContext";
 import { getProductsRequest } from "../../services/api";
 
 const ProductListPage = () => {
+  const { showToast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -20,7 +22,9 @@ const ProductListPage = () => {
       } catch (err) {
         if (!cancelled) {
           setProducts([]);
-          setLoadError(err.message || "Could not load products. Is the server running?");
+          const message = err.message || "Could not load products. Is the server running?";
+          setLoadError(message);
+          showToast(message, "error");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -63,9 +67,8 @@ const ProductListPage = () => {
         </div>
 
         {loading ? <p className="text-sm text-neutral1">Loading products...</p> : null}
-        {loadError ? <p className="text-sm text-red-300">{loadError}</p> : null}
-        {!loading && !loadError && !products.length ? (
-          <p className="text-sm text-neutral1">No products available.</p>
+        {!loading && (loadError || !products.length) ? (
+          <p className="text-sm text-neutral1">{loadError || "No products available."}</p>
         ) : null}
         {!loading && !loadError && products.length ? <ProductList products={products} /> : null}
       </section>

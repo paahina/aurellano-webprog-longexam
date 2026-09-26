@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 
 const inputClasses =
   "mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:bg-zinc-50";
@@ -12,6 +13,7 @@ const actionButtonClassName =
 
 const SignInPage = () => {
   const { login } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({
@@ -19,9 +21,15 @@ const SignInPage = () => {
     password: "",
     rememberMe: false,
   });
-  const [error, setError] = useState("");
-  const [message] = useState(location.state?.message || "");
+  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.message) {
+      showToast(location.state.message, "success");
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate, showToast]);
 
   const onChange = (event) => {
     const { name, value, type, checked } = event.target;
@@ -30,7 +38,7 @@ const SignInPage = () => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    setError("");
+    setFormError("");
     setSaving(true);
     try {
       const user = await login(form);
@@ -39,7 +47,7 @@ const SignInPage = () => {
       const from = location.state?.from?.pathname;
       navigate(from || fallback, { replace: true });
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setSaving(false);
     }
@@ -60,10 +68,8 @@ const SignInPage = () => {
         Access your store account to review orders, saved items, and pickup
         details.
       </p>
-      {message ? <p className="mt-4 text-sm text-green-300">{message}</p> : null}
-      {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
-
       <form className="mt-8 space-y-5" onSubmit={onSubmit}>
+        {formError ? <p className="text-sm text-red-300">{formError}</p> : null}
         <div>
           <label htmlFor="signin-email" className="text-sm font-medium text-secondary">
             Email Address

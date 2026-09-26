@@ -7,6 +7,7 @@ import ListPagination from "../../components/Customer/ListPagination";
 import ListSkeleton from "../../components/Customer/ListSkeleton";
 import ReviewProductCard from "../../components/Customer/ReviewProductCard";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { createReviewRequest, getReviewablePagedRequest } from "../../services/api";
 import { formatDate } from "../../utils/format";
 
@@ -22,6 +23,7 @@ const toLoadMessage = (err) => {
 
 const ReviewPage = () => {
   const { token } = useAuth();
+  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentProductId = searchParams.get("productId") || "";
   const search = searchParams.get("search") || "";
@@ -40,8 +42,7 @@ const ReviewPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const updateParams = (updates) => {
@@ -111,12 +112,11 @@ const ReviewPage = () => {
   const clearSelection = () => {
     setActiveEntry(null);
     setForm({ productId: "", reviewRating: 5, reviewComment: "" });
-    setError("");
+    setFormError("");
   };
 
   const selectEntry = (entry) => {
-    setMessage("");
-    setError("");
+    setFormError("");
     setActiveEntry(entry);
     if (!entry.review) {
       setForm({
@@ -141,10 +141,9 @@ const ReviewPage = () => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    setMessage("");
-    setError("");
+    setFormError("");
     if (!form.productId) {
-      setError("Select a delivered product to review.");
+      setFormError("Select a delivered product to review.");
       return;
     }
     setSaving(true);
@@ -158,10 +157,10 @@ const ReviewPage = () => {
         token
       );
       clearSelection();
-      setMessage("Review saved.");
+      showToast("Review saved.", "success");
       await load();
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setSaving(false);
     }
@@ -180,8 +179,6 @@ const ReviewPage = () => {
       <p className="mt-2 text-sm text-zinc-600">
         Only products from your delivered orders can be reviewed.
       </p>
-
-      {message ? <p className="mt-3 text-sm text-green-700">{message}</p> : null}
 
       {loading ? <ListSkeleton variant="review" count={4} label="Loading reviews" /> : null}
 
@@ -288,7 +285,7 @@ const ReviewPage = () => {
                     </div>
                   ) : (
                     <form onSubmit={onSubmit} className="space-y-4 border-t border-zinc-100 pt-4">
-                      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+                      {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
                       <p className="text-sm text-zinc-600">
                         Share a rating and optional comment for this product.
                       </p>

@@ -27,6 +27,7 @@ router.post(
   writeApiLimiter,
   protect,
   authorize("Admin", "supplier"),
+  upload.single("image"),
   productValidation,
   createProduct,
 );
@@ -36,6 +37,7 @@ router.put(
   protect,
   authorize("Admin", "supplier"),
   mongoIdParamValidation,
+  upload.single("image"),
   productUpdateValidation,
   updateProduct,
 );
@@ -59,6 +61,7 @@ router.post(
   writeApiLimiter,
   protect,
   authorize("Admin", "supplier"),
+  upload.single("image"),
   productValidation,
   createProduct,
 );
@@ -68,6 +71,7 @@ router.put(
   protect,
   authorize("Admin", "supplier"),
   mongoIdParamValidation,
+  upload.single("image"),
   productUpdateValidation,
   updateProduct,
 );

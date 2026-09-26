@@ -12,6 +12,7 @@ import ListSkeleton from "../../components/Customer/ListSkeleton";
 import ShopProductCard from "../../components/Customer/ShopProductCard";
 import { PRODUCT_SORT_OPTIONS, productSortToQuery } from "../../components/Admin/AdminTableToolbar";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { addToCartRequest, getCategoriesRequest, getProductsRequest, getReviewsRequest } from "../../services/api";
 import { averageRating, getId } from "../../utils/format";
 
@@ -19,6 +20,7 @@ const PAGE_SIZE = 12;
 
 const ProductsPage = () => {
   const { token } = useAuth();
+  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("search") || "";
   const category = searchParams.get("category") || "";
@@ -32,7 +34,6 @@ const ProductsPage = () => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [cartError, setCartError] = useState("");
   const [addedIds, setAddedIds] = useState({});
   const addedTimers = useRef({});
 
@@ -142,12 +143,11 @@ const ProductsPage = () => {
   const addToCart = async (event, productId) => {
     event.preventDefault();
     event.stopPropagation();
-    setCartError("");
     try {
       await addToCartRequest(token, productId, 1);
       showAddedCheck(productId);
     } catch (err) {
-      setCartError(err.message || "Could not add this product to your cart.");
+      showToast(err.message || "Could not add this product to your cart.", "error");
     }
   };
 
@@ -210,8 +210,6 @@ const ProductsPage = () => {
             </select>
           </label>
         </div>
-
-        {cartError ? <p className="text-sm text-red-700">{cartError}</p> : null}
 
         {loading ? (
           <ListSkeleton variant="shop" count={PAGE_SIZE} label="Loading products" />

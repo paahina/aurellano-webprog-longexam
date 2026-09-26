@@ -87,11 +87,7 @@ const productValidation = [
     .trim()
     .isLength({ min: 2 })
     .withMessage("Product name must be at least 2 characters"),
-  body("productDescription")
-    .isString()
-    .trim()
-    .isLength({ min: 5 })
-    .withMessage("Product description must be at least 5 characters"),
+  body("productDescription").isString().trim(),
   body("productPrice").isFloat({ min: 0 }).withMessage("Product price must be 0 or greater"),
   body("categoryId").notEmpty().withMessage("categoryId is required"),
   body("supplierId").optional().notEmpty().withMessage("supplierId cannot be empty"),
@@ -101,9 +97,13 @@ const productValidation = [
 
 const productUpdateValidation = [
   body("productName").optional().isString().trim().isLength({ min: 2 }),
-  body("productDescription").optional().isString().trim().isLength({ min: 5 }),
+  body("productDescription").optional().isString().trim(),
   body("productPrice").optional().isFloat({ min: 0 }),
   body("stockQuantity").optional().isInt({ min: 0 }),
+  body("removeImage")
+    .optional()
+    .isIn(["true", "false"])
+    .withMessage("removeImage must be true or false"),
   handleValidation,
 ];
 

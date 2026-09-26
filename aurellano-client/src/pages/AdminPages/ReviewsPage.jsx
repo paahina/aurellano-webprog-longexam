@@ -5,8 +5,10 @@ import AdminTablePagination from "../../components/Admin/AdminTablePagination";
 import AdminTableSkeleton from "../../components/Admin/AdminTableSkeleton";
 import AdminTableToolbar, { DATE_SORT_OPTIONS, dateSortToQuery } from "../../components/Admin/AdminTableToolbar";
 import Button from "../../components/Button";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import ProductImage from "../../components/ProductImage";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { useAdminTableQuery } from "../../hooks/useAdminTableQuery";
 import {
   deleteReviewRequest,
@@ -23,16 +25,18 @@ const inputClass =
 
 const AdminReviewsPage = () => {
   const { token, user } = useAuth();
+  const { showToast } = useToast();
   const isSupplier = user?.userRole === "supplier";
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ reviewRating: 5, reviewComment: "" });
   const [saving, setSaving] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const { sort, search, page, setSort, setPage, updateParam } = useAdminTableQuery(
     "newest",
     DATE_SORT_OPTIONS.map((option) => option.value)
@@ -52,7 +56,6 @@ const AdminReviewsPage = () => {
 
   const load = async () => {
     setLoading(true);
-    setError("");
     try {
       const query = { sort: dateSortToQuery(sort), page, limit: PAGE_SIZE };
       if (search) query.search = search;
@@ -62,7 +65,7 @@ const AdminReviewsPage = () => {
       setReviews(data.items);
       setTotalPages(data.totalPages);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
       setReviews([]);
       setTotalPages(1);
     } finally {
@@ -87,8 +90,7 @@ const AdminReviewsPage = () => {
       reviewComment: review.reviewComment || "",
     });
     setModalOpen(true);
-    setMessage("");
-    setError("");
+    setFormError("");
   };
 
   const closeModal = () => {
@@ -101,8 +103,7 @@ const AdminReviewsPage = () => {
     if (!editing) return;
     if (isSupplier) return;
     setSaving(true);
-    setError("");
-    setMessage("");
+    setFormError("");
     try {
       await updateReviewRequest(
         editing._id,
@@ -112,27 +113,33 @@ const AdminReviewsPage = () => {
         },
         token
       );
-      setMessage("Review updated.");
+      showToast("Review updated.", "success");
       closeModal();
       await load();
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const onDelete = async (review) => {
+  const requestDelete = (review) => {
     if (isSupplier) return;
-    if (!window.confirm("Delete this review?")) return;
-    setError("");
-    setMessage("");
+    setDeleteTarget(review);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteReviewRequest(review._id, token);
-      setMessage("Review deleted.");
+      await deleteReviewRequest(deleteTarget._id, token);
+      showToast("Review deleted.", "success");
+      setDeleteTarget(null);
       await load();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -145,9 +152,6 @@ const AdminReviewsPage = () => {
         <Star className="h-7 w-7" strokeWidth={2} />
         Reviews
       </h1>
-
-      {message ? <p className="mt-4 text-sm text-green-700">{message}</p> : null}
-      {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
 
       <AdminTableToolbar
         sort={sort}
@@ -216,7 +220,7 @@ const AdminReviewsPage = () => {
                             Edit
                           </span>
                         </Button>
-                        <Button type="button" variant="danger" onClick={() => onDelete(review)}>
+                        <Button type="button" variant="danger" onClick={() => requestDelete(review)}>
                           <span className="inline-flex items-center gap-1">
                             <Trash2 className="h-3 w-3" />
                             Delete
@@ -237,6 +241,7 @@ const AdminReviewsPage = () => {
       <AdminModal open={!isSupplier && modalOpen} title="Edit review" onClose={closeModal}>
         {editing ? (
           <form onSubmit={onSubmit} className="space-y-4">
+            {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
             <p className="text-sm text-zinc-600">
               {editing.productId?.productName} · {editing.userId?.firstName}{" "}
               {editing.userId?.lastName}
@@ -278,6 +283,17 @@ const AdminReviewsPage = () => {
           </form>
         ) : null}
       </AdminModal>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete review"
+        message="Delete this review? This cannot be undone."
+        confirmLabel="Yes"
+        cancelLabel="No"
+        loading={deleting}
+        onCancel={() => (deleting ? null : setDeleteTarget(null))}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };

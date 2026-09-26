@@ -3,7 +3,10 @@ const Category = require("../models/categoryModel");
 const Supplier = require("../models/supplierModel");
 const { HttpStatus } = require("../config/constants");
 const { normalizeProductPayload } = require("../utils/stock");
-const cloudinary = require("../config/cloudinary");
+const {
+  uploadProductBuffer,
+  deleteCloudinaryAsset,
+} = require("../utils/cloudinaryUpload");
 
 const sendResponse = (res, status, success, message, data = []) => {
   const list = Array.isArray(data) ? data : data ? [data] : [];
@@ -275,8 +278,17 @@ const getProductBySlug = async (req, res) => {
 const createProduct = async (req, res) => {
   try {
     const payload = normalizeProductPayload(req.body);
+    delete payload.productImage;
+    delete payload.productImagePublicId;
+
     if (req.user?.userRole === "supplier" && req.user.supplierId) {
       payload.supplierId = req.user.supplierId;
+    }
+
+    if (req.file) {
+      const uploaded = await uploadProductBuffer(req.file);
+      payload.productImage = uploaded.secure_url;
+      payload.productImagePublicId = uploaded.public_id;
     }
 
     const product = await Product.create(payload);
@@ -312,9 +324,26 @@ const updateProduct = async (req, res) => {
       }
     }
 
+    const removeImage = req.body.removeImage === "true";
     const payload = normalizeProductPayload(req.body);
+    delete payload.productImage;
+    delete payload.productImagePublicId;
+    delete payload.removeImage;
+
     if (req.user?.userRole === "supplier" && req.user.supplierId) {
       payload.supplierId = req.user.supplierId;
+    }
+
+    if (req.file) {
+      const uploaded = await uploadProductBuffer(req.file);
+      const previousPublicId = existing.productImagePublicId;
+      payload.productImage = uploaded.secure_url;
+      payload.productImagePublicId = uploaded.public_id;
+      await deleteCloudinaryAsset(previousPublicId);
+    } else if (removeImage) {
+      await deleteCloudinaryAsset(existing.productImagePublicId);
+      payload.productImage = "";
+      payload.productImagePublicId = "";
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -352,7 +381,8 @@ const deleteProduct = async (req, res) => {
       }
     }
 
-    const product = await Product.findByIdAndDelete(req.params.id);
+    await deleteCloudinaryAsset(existing.productImagePublicId);
+    await Product.findByIdAndDelete(req.params.id);
     return sendResponse(
       res,
       HttpStatus.OK,
@@ -395,18 +425,17 @@ const uploadProductImage = async (req, res) => {
       }
     }
 
-    const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-    const result = await cloudinary.uploader.upload(dataUri, {
-      folder: "bulldogs-exchange/products",
-    });
-
-    product.productImage = result.secure_url;
+    const uploaded = await uploadProductBuffer(req.file);
+    const previousPublicId = product.productImagePublicId;
+    product.productImage = uploaded.secure_url;
+    product.productImagePublicId = uploaded.public_id;
     await product.save();
+    await deleteCloudinaryAsset(previousPublicId);
 
     return res.status(HttpStatus.OK).json({
       success: true,
-      imageUrl: result.secure_url,
-      publicId: result.public_id,
+      imageUrl: uploaded.secure_url,
+      publicId: uploaded.public_id,
     });
   } catch (error) {
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({

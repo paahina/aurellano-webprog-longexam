@@ -8,7 +8,9 @@ import AdminTableToolbar, {
   genericSortToQuery,
 } from "../../components/Admin/AdminTableToolbar";
 import Button from "../../components/Button";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { useAdminTableQuery } from "../../hooks/useAdminTableQuery";
 import {
   createUserByAdminRequest,
@@ -37,15 +39,17 @@ const emptyForm = {
 
 const AdminUsersPage = () => {
   const { token } = useAuth();
+  const { showToast } = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const { sort, page, setSort, setPage } = useAdminTableQuery(
     "az",
     GENERIC_SORT_OPTIONS.map((option) => option.value)
@@ -53,7 +57,6 @@ const AdminUsersPage = () => {
 
   const load = async () => {
     setLoading(true);
-    setError("");
     try {
       const data = await getUsersPagedRequest(token, {
         sort: genericSortToQuery(sort),
@@ -63,7 +66,7 @@ const AdminUsersPage = () => {
       setUsers(data.items);
       setTotalPages(data.totalPages);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
       setUsers([]);
       setTotalPages(1);
     } finally {
@@ -84,8 +87,7 @@ const AdminUsersPage = () => {
     setEditing(null);
     setForm(emptyForm);
     setModalOpen(true);
-    setMessage("");
-    setError("");
+    setFormError("");
   };
 
   const openEdit = (user) => {
@@ -102,8 +104,7 @@ const AdminUsersPage = () => {
       confirmPassword: "",
     });
     setModalOpen(true);
-    setMessage("");
-    setError("");
+    setFormError("");
   };
 
   const closeModal = () => {
@@ -127,27 +128,26 @@ const AdminUsersPage = () => {
 
     if (!editing) {
       if (newPassword.length < 6) {
-        setError("Password must be at least 6 characters.");
+        setFormError("Password must be at least 6 characters.");
         return;
       }
       if (newPassword !== confirmPassword) {
-        setError("Password and confirm password do not match.");
+        setFormError("Password and confirm password do not match.");
         return;
       }
     } else if (newPassword || confirmPassword) {
       if (newPassword.length < 6) {
-        setError("New password must be at least 6 characters.");
+        setFormError("New password must be at least 6 characters.");
         return;
       }
       if (newPassword !== confirmPassword) {
-        setError("New password and confirm password do not match.");
+        setFormError("New password and confirm password do not match.");
         return;
       }
     }
 
     setSaving(true);
-    setError("");
-    setMessage("");
+    setFormError("");
     try {
       if (!editing) {
         const payload = {
@@ -163,7 +163,7 @@ const AdminUsersPage = () => {
           payload.supplierDescription = form.supplierDescription.trim();
         }
         await createUserByAdminRequest(payload, token);
-        setMessage("User created.");
+        showToast("User created.", "success");
       } else {
         const payload = {
           firstName: form.firstName.trim(),
@@ -182,31 +182,37 @@ const AdminUsersPage = () => {
           payload.password = newPassword;
         }
         await updateUserRequest(editing._id, payload, token);
-        setMessage("User updated.");
+        showToast("User updated.", "success");
       }
       closeModal();
       await load();
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const onDelete = async (user) => {
+  const requestDelete = (user) => {
     if (user.userRole === "Admin") {
-      setError("Admin accounts cannot be deleted from this panel.");
+      showToast("Admin accounts cannot be deleted from this panel.", "error");
       return;
     }
-    if (!window.confirm(`Delete user ${user.email}?`)) return;
-    setError("");
-    setMessage("");
+    setDeleteTarget(user);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteUserRequest(user._id, token);
-      setMessage("User deleted.");
+      await deleteUserRequest(deleteTarget._id, token);
+      showToast("User deleted.", "success");
+      setDeleteTarget(null);
       await load();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -233,9 +239,6 @@ const AdminUsersPage = () => {
           </span>
         </Button>
       </div>
-
-      {message ? <p className="mt-4 text-sm text-green-700">{message}</p> : null}
-      {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
 
       <AdminTableToolbar
         sort={sort}
@@ -289,7 +292,7 @@ const AdminUsersPage = () => {
                         </span>
                       </Button>
                       {user.userRole !== "Admin" ? (
-                        <Button type="button" variant="danger" onClick={() => onDelete(user)}>
+                        <Button type="button" variant="danger" onClick={() => requestDelete(user)}>
                           <span className="inline-flex items-center gap-1">
                             <Trash2 className="h-3 w-3" />
                             Delete
@@ -313,6 +316,7 @@ const AdminUsersPage = () => {
         onClose={closeModal}
       >
         <form onSubmit={onSubmit} className="space-y-4">
+          {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
           <label className="block text-sm">
             First name
             <input
@@ -450,6 +454,19 @@ const AdminUsersPage = () => {
           </div>
         </form>
       </AdminModal>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete user"
+        message={
+          deleteTarget ? `Delete user ${deleteTarget.email}? This cannot be undone.` : ""
+        }
+        confirmLabel="Yes"
+        cancelLabel="No"
+        loading={deleting}
+        onCancel={() => (deleting ? null : setDeleteTarget(null))}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };

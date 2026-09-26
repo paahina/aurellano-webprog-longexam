@@ -7,6 +7,7 @@ import ListEmptyState from "../../components/Customer/ListEmptyState";
 import ListPagination from "../../components/Customer/ListPagination";
 import ListSkeleton from "../../components/Customer/ListSkeleton";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import {
   createOrderRequest,
   getCartItemsPagedRequest,
@@ -45,6 +46,7 @@ const slicePageItems = (allItems, page) => {
 
 const CartPage = () => {
   const { token } = useAuth();
+  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const pageParam = Number(searchParams.get("page") || "1");
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
@@ -58,8 +60,7 @@ const CartPage = () => {
   const [pickupDetails, setPickupDetails] = useState("NU Manila Bulldogs Exchange");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const knownCartIdsRef = useRef(new Set());
   const hasLoadedRef = useRef(false);
@@ -130,7 +131,7 @@ const CartPage = () => {
         setItemCount(0);
         setLoadError(toLoadMessage(err));
       } else {
-        setError(err.message || toLoadMessage(err));
+        showToast(err.message || toLoadMessage(err), "error");
       }
     } finally {
       if (!silent) setLoading(false);
@@ -227,12 +228,12 @@ const CartPage = () => {
         applyCartState(snapshot.full, snapshot.page);
         setSelectedIds(snapshot.selected);
         setProductPending(snapshot.productId, false);
-        setError(err.message);
+        showToast(err.message, "error");
       });
   };
 
   const mutateFullCart = (updater, productId) => {
-    setError("");
+    setFormError("");
     const snapshot = {
       full: fullCartRef.current,
       selected: new Set(selectedIds),
@@ -271,14 +272,13 @@ const CartPage = () => {
 
   const checkout = async (event) => {
     event.preventDefault();
-    setMessage("");
-    setError("");
+    setFormError("");
     if (!selectedItems.length) {
-      setError("Select at least one item to place your order.");
+      setFormError("Select at least one item to place your order.");
       return;
     }
     if (selectedBlocked) {
-      setError("Uncheck out-of-stock items or adjust quantities before placing your order.");
+      setFormError("Uncheck out-of-stock items or adjust quantities before placing your order.");
       return;
     }
     setCheckingOut(true);
@@ -296,13 +296,14 @@ const CartPage = () => {
       await saveCartItemsRequest(token, remaining);
       setSelectedIds(new Set());
       applyCartState(remaining);
-      setMessage(
+      showToast(
         orders.length > 1
           ? `Order placed (${orders.length} orders). Track them in the Orders tab.`
-          : "Order placed. Track it in the Orders tab."
+          : "Order placed. Track it in the Orders tab.",
+        "success"
       );
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setCheckingOut(false);
     }
@@ -316,11 +317,6 @@ const CartPage = () => {
         <ShoppingCart className="h-6 w-6" strokeWidth={2} />
         Cart
       </h2>
-      {message ? <p className="mt-3 text-sm text-green-700">{message}</p> : null}
-      {!loading && !loadError && error ? (
-        <p className="mt-3 text-sm text-red-700">{error}</p>
-      ) : null}
-
       {loading ? <ListSkeleton variant="cart" count={4} label="Loading cart" /> : null}
 
       {!loading && (loadError || !itemCount) ? (
@@ -385,6 +381,7 @@ const CartPage = () => {
               className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
             >
               <h3 className="text-lg font-semibold text-primary">Order summary</h3>
+              {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
               <p className="text-sm text-zinc-600">
                 Selected: {selectedItems.length}{" "}
                 {selectedItems.length === 1 ? "item" : "items"}

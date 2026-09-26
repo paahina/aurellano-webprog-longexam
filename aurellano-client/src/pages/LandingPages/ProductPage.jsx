@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Button from "../../components/Button.jsx";
 import ProductImage from "../../components/ProductImage";
+import { useToast } from "../../context/ToastContext";
 import { getProductsRequest } from "../../services/api";
 import { formatPeso } from "../../utils/format";
 
 function ProductPage() {
   const { name } = useParams();
+  const { showToast } = useToast();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -28,7 +30,9 @@ function ProductPage() {
       } catch (err) {
         if (!cancelled) {
           setProduct(null);
-          setLoadError(err.message || "Could not load product. Is the server running?");
+          const message = err.message || "Could not load product. Is the server running?";
+          setLoadError(message);
+          showToast(message, "error");
         }
       } finally {
         if (!cancelled) setLoading(false);

@@ -5,24 +5,24 @@ import Button from "../../components/Button";
 import ProductDetailSkeleton from "../../components/Customer/ProductDetailSkeleton";
 import ProductImage from "../../components/ProductImage";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { addToCartRequest, getProductBySlugRequest, getReviewsRequest } from "../../services/api";
 import { averageRating, formatPeso } from "../../utils/format";
 
 const ProductDetailPage = () => {
   const { slug } = useParams();
   const { token } = useAuth();
+  const { showToast } = useToast();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [justAdded, setJustAdded] = useState(false);
-  const [error, setError] = useState("");
   const addedTimer = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      setError("");
       try {
         const match = await getProductBySlugRequest(slug);
         if (!match) {
@@ -34,7 +34,7 @@ const ProductDetailPage = () => {
         setProduct(match);
         setReviews(productReviews);
       } catch (err) {
-        if (!cancelled) setError(err.message);
+        if (!cancelled) showToast(err.message, "error");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -61,12 +61,11 @@ const ProductDetailPage = () => {
   };
 
   const addToCart = async () => {
-    setError("");
     try {
       await addToCartRequest(token, product._id, 1);
       showAddedCheck();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
     }
   };
 
@@ -128,7 +127,6 @@ const ProductDetailPage = () => {
             <p className="mt-1 text-sm">
               Supplier: {product.supplierId?.supplierName || "—"}
             </p>
-            {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
             <div className="mt-6 flex items-center gap-3">
               <Button
                 type="button"

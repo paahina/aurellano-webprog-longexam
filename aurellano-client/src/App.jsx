@@ -32,6 +32,8 @@ import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestRoute from "./components/GuestRoute";
 import { AuthProvider } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
+import Toast from "./components/Toast";
 
 const routes = [
   {
@@ -124,7 +126,10 @@ const router = createBrowserRouter(routes);
 function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <Toast />
+        <RouterProvider router={router} />
+      </ToastProvider>
     </AuthProvider>
   );
 }

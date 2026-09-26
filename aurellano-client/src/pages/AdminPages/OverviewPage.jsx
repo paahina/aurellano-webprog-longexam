@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import {
   getOrdersRequest,
   getProductsRequest,
@@ -11,6 +12,7 @@ import {
 
 const OverviewPage = () => {
   const { token, user } = useAuth();
+  const { showToast } = useToast();
   const isSupplier = user?.userRole === "supplier";
   const [counts, setCounts] = useState({
     products: 0,
@@ -19,13 +21,11 @@ const OverviewPage = () => {
     users: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      setError("");
       try {
         if (isSupplier) {
           const [productResult, orders] = await Promise.all([
@@ -57,7 +57,7 @@ const OverviewPage = () => {
           users: users.length,
         });
       } catch (err) {
-        if (!cancelled) setError(err.message);
+        if (!cancelled) showToast(err.message, "error");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -79,8 +79,6 @@ const OverviewPage = () => {
       <p className="mt-2 text-sm text-zinc-600">
         Overview of BulldogExchange store activity.
       </p>
-      {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
-
       {loading ? (
         <div
           className={

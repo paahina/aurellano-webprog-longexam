@@ -6,8 +6,10 @@ import AdminTableSkeleton from "../../components/Admin/AdminTableSkeleton";
 import AdminTableToolbar, { DATE_SORT_OPTIONS, dateSortToQuery } from "../../components/Admin/AdminTableToolbar";
 import OrderStatusChip from "../../components/Admin/OrderStatusChip";
 import Button from "../../components/Button";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import OrderItemColumn from "../../components/Customer/OrderItemColumn";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { useAdminTableQuery } from "../../hooks/useAdminTableQuery";
 import {
   deleteOrderRequest,
@@ -30,17 +32,19 @@ const inputClass =
 
 const AdminOrdersPage = () => {
   const { token, user } = useAuth();
+  const { showToast } = useToast();
   const isSupplier = user?.userRole === "supplier";
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [orderStatus, setOrderStatus] = useState("pending");
   const [pickupDetails, setPickupDetails] = useState("");
   const [saving, setSaving] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const { sort, page, setSort, setPage } = useAdminTableQuery(
     "newest",
     DATE_SORT_OPTIONS.map((option) => option.value)
@@ -48,7 +52,6 @@ const AdminOrdersPage = () => {
 
   const load = async () => {
     setLoading(true);
-    setError("");
     try {
       const data = await getOrdersPagedRequest(token, {
         sort: dateSortToQuery(sort),
@@ -58,7 +61,7 @@ const AdminOrdersPage = () => {
       setOrders(data.items);
       setTotalPages(data.totalPages);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
       setOrders([]);
       setTotalPages(1);
     } finally {
@@ -80,8 +83,7 @@ const AdminOrdersPage = () => {
     setOrderStatus(order.orderStatus || "pending");
     setPickupDetails(order.pickupDetails || "");
     setModalOpen(true);
-    setMessage("");
-    setError("");
+    setFormError("");
   };
 
   const closeModal = () => {
@@ -93,34 +95,35 @@ const AdminOrdersPage = () => {
     event.preventDefault();
     if (!editing) return;
     setSaving(true);
-    setError("");
-    setMessage("");
+    setFormError("");
     try {
       await updateOrderRequest(
         editing._id,
         { orderStatus, pickupDetails },
         token
       );
-      setMessage("Order updated.");
+      showToast("Order updated.", "success");
       closeModal();
       await load();
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const onDelete = async (order) => {
-    if (!window.confirm("Delete this order?")) return;
-    setError("");
-    setMessage("");
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteOrderRequest(order._id, token);
-      setMessage("Order deleted.");
+      await deleteOrderRequest(deleteTarget._id, token);
+      showToast("Order deleted.", "success");
+      setDeleteTarget(null);
       await load();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -133,9 +136,6 @@ const AdminOrdersPage = () => {
         <ClipboardList className="h-7 w-7" strokeWidth={2} />
         Orders
       </h1>
-
-      {message ? <p className="mt-4 text-sm text-green-700">{message}</p> : null}
-      {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
 
       <AdminTableToolbar
         sort={sort}
@@ -195,7 +195,7 @@ const AdminOrdersPage = () => {
                         </span>
                       </Button>
                       {!isSupplier ? (
-                        <Button type="button" variant="danger" onClick={() => onDelete(order)}>
+                        <Button type="button" variant="danger" onClick={() => setDeleteTarget(order)}>
                           <span className="inline-flex items-center gap-1">
                             <Trash2 className="h-3 w-3" />
                             Delete
@@ -222,6 +222,7 @@ const AdminOrdersPage = () => {
       <AdminModal open={modalOpen} title="Edit order" onClose={closeModal} wide>
         {editing ? (
           <form onSubmit={onSubmit} className="space-y-4">
+            {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
             <p className="text-sm text-zinc-600">
               {editing.userId?.firstName} {editing.userId?.lastName} ·{" "}
               {formatPeso(editing.totalAmount)}
@@ -273,6 +274,17 @@ const AdminOrdersPage = () => {
           </form>
         ) : null}
       </AdminModal>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete order"
+        message="Delete this order? This cannot be undone."
+        confirmLabel="Yes"
+        cancelLabel="No"
+        loading={deleting}
+        onCancel={() => (deleting ? null : setDeleteTarget(null))}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };
