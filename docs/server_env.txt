@@ -1,0 +1,7 @@
+MONGO_URI=mongodb+srv://paurellano3_db_user:JikcMLe1kYUlue0D@cluster0.vgaqkjn.mongodb.net/aurellano-advwebprog-bexchange?appName=Cluster0
+PORT=5001
+JWT_SECRET=aurellano-bexchange-jwt-secret
+JWT_EXPIRES_IN=1d
+CLOUDINARY_CLOUD_NAME=zafh84cu
+CLOUDINARY_API_KEY=541431183967637
+CLOUDINARY_API_SECRET=FcqDSxSfSoGn-mY6z9Pm4-Q0e3g
