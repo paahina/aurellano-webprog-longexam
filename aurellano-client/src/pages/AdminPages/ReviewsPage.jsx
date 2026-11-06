@@ -17,6 +17,7 @@ import {
   updateReviewRequest,
 } from "../../services/api";
 import { formatDate } from "../../utils/format";
+import { toUserError } from "../../utils/userError";
 
 const PAGE_SIZE = 10;
 
@@ -29,7 +30,6 @@ const AdminReviewsPage = () => {
   const isSupplier = user?.userRole === "supplier";
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ reviewRating: 5, reviewComment: "" });
@@ -65,7 +65,7 @@ const AdminReviewsPage = () => {
       setReviews(data.items);
       setTotalPages(data.totalPages);
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
       setReviews([]);
       setTotalPages(1);
     } finally {
@@ -90,7 +90,6 @@ const AdminReviewsPage = () => {
       reviewComment: review.reviewComment || "",
     });
     setModalOpen(true);
-    setFormError("");
   };
 
   const closeModal = () => {
@@ -103,7 +102,6 @@ const AdminReviewsPage = () => {
     if (!editing) return;
     if (isSupplier) return;
     setSaving(true);
-    setFormError("");
     try {
       await updateReviewRequest(
         editing._id,
@@ -117,7 +115,7 @@ const AdminReviewsPage = () => {
       closeModal();
       await load();
     } catch (err) {
-      setFormError(err.message);
+      showToast(toUserError(err), "error");
     } finally {
       setSaving(false);
     }
@@ -137,7 +135,7 @@ const AdminReviewsPage = () => {
       setDeleteTarget(null);
       await load();
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
     } finally {
       setDeleting(false);
     }
@@ -241,7 +239,6 @@ const AdminReviewsPage = () => {
       <AdminModal open={!isSupplier && modalOpen} title="Edit review" onClose={closeModal}>
         {editing ? (
           <form onSubmit={onSubmit} className="space-y-4">
-            {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
             <p className="text-sm text-zinc-600">
               {editing.productId?.productName} · {editing.userId?.firstName}{" "}
               {editing.userId?.lastName}

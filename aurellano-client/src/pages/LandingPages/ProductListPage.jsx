@@ -3,18 +3,19 @@ import Button from "../../components/Button.jsx";
 import ProductList from "../../components/ProductList.jsx";
 import { useToast } from "../../context/ToastContext";
 import { getProductsRequest } from "../../services/api";
+import { toUserError } from "../../utils/userError";
 
 const ProductListPage = () => {
   const { showToast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      setLoadError("");
+      setLoadError(false);
       setProducts([]);
       try {
         const { products: list } = await getProductsRequest({ limit: 100, sort: "name" });
@@ -22,9 +23,8 @@ const ProductListPage = () => {
       } catch (err) {
         if (!cancelled) {
           setProducts([]);
-          const message = err.message || "Could not load products. Is the server running?";
-          setLoadError(message);
-          showToast(message, "error");
+          setLoadError(true);
+          showToast(toUserError(err), "error");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -68,7 +68,9 @@ const ProductListPage = () => {
 
         {loading ? <p className="text-sm text-neutral1">Loading products...</p> : null}
         {!loading && (loadError || !products.length) ? (
-          <p className="text-sm text-neutral1">{loadError || "No products available."}</p>
+          <p className="text-sm text-neutral1">
+            {loadError ? "Please try again later." : "No products available."}
+          </p>
         ) : null}
         {!loading && !loadError && products.length ? <ProductList products={products} /> : null}
       </section>

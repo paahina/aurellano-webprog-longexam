@@ -17,6 +17,7 @@ import {
   updateOrderRequest,
 } from "../../services/api";
 import { formatDate, formatPeso } from "../../utils/format";
+import { toUserError } from "../../utils/userError";
 
 const PAGE_SIZE = 10;
 
@@ -36,7 +37,6 @@ const AdminOrdersPage = () => {
   const isSupplier = user?.userRole === "supplier";
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [orderStatus, setOrderStatus] = useState("pending");
@@ -61,7 +61,7 @@ const AdminOrdersPage = () => {
       setOrders(data.items);
       setTotalPages(data.totalPages);
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
       setOrders([]);
       setTotalPages(1);
     } finally {
@@ -83,7 +83,6 @@ const AdminOrdersPage = () => {
     setOrderStatus(order.orderStatus || "pending");
     setPickupDetails(order.pickupDetails || "");
     setModalOpen(true);
-    setFormError("");
   };
 
   const closeModal = () => {
@@ -95,7 +94,6 @@ const AdminOrdersPage = () => {
     event.preventDefault();
     if (!editing) return;
     setSaving(true);
-    setFormError("");
     try {
       await updateOrderRequest(
         editing._id,
@@ -106,7 +104,7 @@ const AdminOrdersPage = () => {
       closeModal();
       await load();
     } catch (err) {
-      setFormError(err.message);
+      showToast(toUserError(err), "error");
     } finally {
       setSaving(false);
     }
@@ -121,7 +119,7 @@ const AdminOrdersPage = () => {
       setDeleteTarget(null);
       await load();
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
     } finally {
       setDeleting(false);
     }
@@ -222,7 +220,6 @@ const AdminOrdersPage = () => {
       <AdminModal open={modalOpen} title="Edit order" onClose={closeModal} wide>
         {editing ? (
           <form onSubmit={onSubmit} className="space-y-4">
-            {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
             <p className="text-sm text-zinc-600">
               {editing.userId?.firstName} {editing.userId?.lastName} ·{" "}
               {formatPeso(editing.totalAmount)}

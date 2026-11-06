@@ -1,5 +1,6 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import Button from "./Button";
+import LogoutButton from "./LogoutButton";
 import { useAuth } from "../context/AuthContext";
 import logo from "../assets/img/nubdexchange_logo.png";
 
@@ -18,13 +19,7 @@ const navLinkClassName = ({ isActive }) =>
   ].join(" ");
 
 const NavBar = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const onLogout = async () => {
-    await logout();
-    navigate("/");
-  };
+  const { user } = useAuth();
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 bg-primary shadow-xl backdrop-blur">
@@ -63,9 +58,7 @@ const NavBar = () => {
             </Button>
           ) : null}
           {user ? (
-            <Button type="button" variant="custom5" onClick={onLogout}>
-              Log out
-            </Button>
+            <LogoutButton variant="custom5">Log out</LogoutButton>
           ) : (
             <Button to="/auth/signin">Sign In</Button>
           )}

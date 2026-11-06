@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { addToCartRequest, getCategoriesRequest, getProductsRequest, getReviewsRequest } from "../../services/api";
 import { averageRating, getId } from "../../utils/format";
+import { toUserError } from "../../utils/userError";
 
 const PAGE_SIZE = 12;
 
@@ -33,7 +34,7 @@ const ProductsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [addedIds, setAddedIds] = useState({});
   const addedTimers = useRef({});
 
@@ -41,7 +42,7 @@ const ProductsPage = () => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      setLoadError("");
+      setLoadError(false);
       setProducts([]);
       try {
         const query = {
@@ -66,12 +67,8 @@ const ProductsPage = () => {
         if (!cancelled) {
           setProducts([]);
           setTotalPages(1);
-          const raw = err.message || "";
-          setLoadError(
-            !raw || raw === "Failed to fetch"
-              ? "Could not reach the server. Please try again later."
-              : raw
-          );
+          setLoadError(true);
+          showToast(toUserError(err), "error");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -147,7 +144,7 @@ const ProductsPage = () => {
       await addToCartRequest(token, productId, 1);
       showAddedCheck(productId);
     } catch (err) {
-      showToast(err.message || "Could not add this product to your cart.", "error");
+      showToast(toUserError(err), "error");
     }
   };
 
@@ -218,8 +215,8 @@ const ProductsPage = () => {
         {!loading && (loadError || !products.length) ? (
           <ListEmptyState
             icon={ShoppingCart}
-            title="No Product found"
-            message={loadError || "No products match this search."}
+            title={loadError ? "Unable to load products" : "No Product found"}
+            message={loadError ? "Please try again later." : "No products match this search."}
             className="min-h-[28rem] py-16"
           />
         ) : null}

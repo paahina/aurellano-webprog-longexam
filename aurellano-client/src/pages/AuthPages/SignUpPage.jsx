@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
+import { toUserError } from "../../utils/userError";
 
 const inputClasses =
   "mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:bg-zinc-50";
@@ -24,7 +25,6 @@ const SignUpPage = () => {
     supplierName: "",
     supplierDescription: "",
   });
-  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const onChange = (event) => {
@@ -34,14 +34,13 @@ const SignUpPage = () => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    setFormError("");
     setSaving(true);
     try {
       await signup(form);
       showToast("Account created. Please sign in.", "success");
       navigate("/auth/signin", { replace: true });
     } catch (err) {
-      setFormError(err.message);
+      showToast(toUserError(err), "error");
     } finally {
       setSaving(false);
     }
@@ -63,7 +62,6 @@ const SignUpPage = () => {
         details.
       </p>
       <form className="mt-8 space-y-5" onSubmit={onSubmit}>
-        {formError ? <p className="text-sm text-red-300">{formError}</p> : null}
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="first-name" className="text-sm font-medium text-secondary">

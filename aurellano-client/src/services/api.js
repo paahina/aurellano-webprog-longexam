@@ -5,7 +5,8 @@ const API_BASE = import.meta.env.VITE_API_URL || "";
 const parseResponse = async (response) => {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.message || "Request failed");
+    const firstError = data.errors?.[0]?.msg;
+    throw new Error(firstError || data.message || "Request failed");
   }
   return data;
 };

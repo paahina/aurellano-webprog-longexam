@@ -25,6 +25,7 @@ import {
 } from "../../services/api";
 import { formatPeso, getId } from "../../utils/format";
 import { deriveStockStatus } from "../../utils/stock";
+import { toUserError } from "../../utils/userError";
 
 const PAGE_SIZE = 10;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -67,7 +68,6 @@ const AdminProductsPage = () => {
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -76,7 +76,6 @@ const AdminProductsPage = () => {
   const [imagePreview, setImagePreview] = useState("");
   const [existingImage, setExistingImage] = useState("");
   const [removeImage, setRemoveImage] = useState(false);
-  const [imageError, setImageError] = useState("");
   const [saving, setSaving] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -108,7 +107,7 @@ const AdminProductsPage = () => {
       setCategories(Array.isArray(categoryList) ? categoryList : categoryList?.data || []);
       setSuppliers(Array.isArray(supplierList) ? supplierList : supplierList?.data || []);
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
       setProducts([]);
       setTotalPages(1);
     } finally {
@@ -142,7 +141,6 @@ const AdminProductsPage = () => {
     clearImageSelection();
     setExistingImage("");
     setRemoveImage(false);
-    setImageError("");
     setEditing(null);
     setForm(emptyForm);
     setInitialForm(emptyForm);
@@ -167,9 +165,7 @@ const AdminProductsPage = () => {
     clearImageSelection();
     setExistingImage("");
     setRemoveImage(false);
-    setImageError("");
     setModalOpen(true);
-    setFormError("");
   };
 
   const openEdit = (product) => {
@@ -188,9 +184,7 @@ const AdminProductsPage = () => {
     clearImageSelection();
     setExistingImage(product.productImage || "");
     setRemoveImage(false);
-    setImageError("");
     setModalOpen(true);
-    setFormError("");
   };
 
   const requestCloseModal = () => {
@@ -215,20 +209,19 @@ const AdminProductsPage = () => {
 
   const onImageChange = (event) => {
     const file = event.target.files?.[0];
-    setImageError("");
     if (!file) {
       clearImageSelection();
       return;
     }
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setImageError("Only JPEG, PNG, or WebP images are allowed.");
+      showToast("Please choose a JPEG, PNG, or WebP image.", "error");
       clearImageSelection();
       return;
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
-      setImageError("Image file too large. Maximum size is 5MB.");
+      showToast("That image is too large. Please use a file under 5MB.", "error");
       clearImageSelection();
       return;
     }
@@ -241,15 +234,12 @@ const AdminProductsPage = () => {
 
   const onRemoveImage = () => {
     clearImageSelection();
-    setImageError("");
     if (existingImage) setRemoveImage(true);
   };
 
   const onSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
-    setFormError("");
-    setImageError("");
 
     const formData = new FormData();
     formData.append("productName", form.productName.trim());
@@ -273,7 +263,7 @@ const AdminProductsPage = () => {
       resetModalState();
       await load();
     } catch (err) {
-      setFormError(err.message);
+      showToast(toUserError(err), "error");
     } finally {
       setSaving(false);
     }
@@ -288,7 +278,7 @@ const AdminProductsPage = () => {
       setDeleteTarget(null);
       await load();
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
     } finally {
       setDeleting(false);
     }
@@ -403,7 +393,6 @@ const AdminProductsPage = () => {
         wide
       >
         <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
-          {formError ? <p className="text-sm text-red-700 sm:col-span-2">{formError}</p> : null}
           <label className="text-sm sm:col-span-2">
             Name
             <input name="productName" value={form.productName} onChange={onChange} required className={inputClass} />
@@ -467,7 +456,6 @@ const AdminProductsPage = () => {
             {removeImage ? (
               <p className="mt-2 text-xs text-zinc-500">The current image will be removed when you save.</p>
             ) : null}
-            {imageError ? <p className="mt-2 text-sm text-red-700">{imageError}</p> : null}
           </div>
           <label className="text-sm">
             Category

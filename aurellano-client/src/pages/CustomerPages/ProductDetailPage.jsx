@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { addToCartRequest, getProductBySlugRequest, getReviewsRequest } from "../../services/api";
 import { averageRating, formatPeso } from "../../utils/format";
+import { toUserError } from "../../utils/userError";
 
 const ProductDetailPage = () => {
   const { slug } = useParams();
@@ -34,7 +35,7 @@ const ProductDetailPage = () => {
         setProduct(match);
         setReviews(productReviews);
       } catch (err) {
-        if (!cancelled) showToast(err.message, "error");
+        if (!cancelled) showToast(toUserError(err), "error");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -65,7 +66,7 @@ const ProductDetailPage = () => {
       await addToCartRequest(token, product._id, 1);
       showAddedCheck();
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
     }
   };
 

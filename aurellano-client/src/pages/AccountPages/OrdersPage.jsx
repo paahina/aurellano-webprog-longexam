@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import ListEmptyState from "../../components/Customer/ListEmptyState";
 import ListPagination from "../../components/Customer/ListPagination";
 import ListSkeleton from "../../components/Customer/ListSkeleton";
@@ -8,16 +9,9 @@ import OrderCard from "../../components/Customer/OrderCard";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { getOrdersPagedRequest, updateOrderRequest } from "../../services/api";
+import { toUserError } from "../../utils/userError";
 
 const PAGE_SIZE = 10;
-
-const toLoadMessage = (err) => {
-  const raw = err?.message || "";
-  if (!raw || raw === "Failed to fetch") {
-    return "Could not reach the server. Please try again later.";
-  }
-  return raw;
-};
 
 const OrdersPage = () => {
   const { token } = useAuth();
@@ -29,7 +23,9 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const setPage = (nextPage) => {
     const clamped = Math.max(1, Number(nextPage) || 1);
@@ -41,7 +37,7 @@ const OrdersPage = () => {
 
   const loadOrders = async () => {
     setLoading(true);
-    setLoadError("");
+    setLoadError(false);
     setOrders([]);
     try {
       const data = await getOrdersPagedRequest(token, {
@@ -54,7 +50,8 @@ const OrdersPage = () => {
     } catch (err) {
       setOrders([]);
       setTotalPages(1);
-      setLoadError(toLoadMessage(err));
+      setLoadError(true);
+      showToast(toUserError(err), "error");
     } finally {
       setLoading(false);
     }
@@ -69,13 +66,18 @@ const OrdersPage = () => {
     setPage(totalPages);
   }, [loading, page, totalPages]);
 
-  const cancelOrder = async (id) => {
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
     try {
-      await updateOrderRequest(id, { orderStatus: "cancelled" }, token);
+      await updateOrderRequest(cancelTarget, { orderStatus: "cancelled" }, token);
       showToast("Order cancelled.", "success");
+      setCancelTarget(null);
       await loadOrders();
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -91,7 +93,11 @@ const OrdersPage = () => {
         <ListEmptyState
           icon={ClipboardList}
           title={loadError ? "Unable to load orders" : "No orders found"}
-          message={loadError || "No pending or ready-for-claiming orders."}
+          message={
+            loadError
+              ? "Please try again later."
+              : "No pending or ready-for-claiming orders."
+          }
         />
       ) : null}
 
@@ -99,7 +105,7 @@ const OrdersPage = () => {
         <>
           <div className="mt-4 space-y-4">
             {orders.map((order) => (
-              <OrderCard key={order._id} order={order} onCancel={cancelOrder} />
+              <OrderCard key={order._id} order={order} onCancel={setCancelTarget} />
             ))}
           </div>
           <ListPagination
@@ -110,6 +116,17 @@ const OrdersPage = () => {
           />
         </>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        title="Cancel order"
+        message="Are you sure you want to cancel this order?"
+        confirmLabel="Yes"
+        cancelLabel="No"
+        loading={cancelling}
+        onCancel={() => (cancelling ? null : setCancelTarget(null))}
+        onConfirm={confirmCancel}
+      />
     </section>
   );
 };

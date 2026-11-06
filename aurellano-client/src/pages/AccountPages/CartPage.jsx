@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
 import Button from "../../components/Button";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import CartItemCard from "../../components/Customer/CartItemCard";
 import ListEmptyState from "../../components/Customer/ListEmptyState";
 import ListPagination from "../../components/Customer/ListPagination";
@@ -16,16 +17,9 @@ import {
 } from "../../services/api";
 import { formatPeso, getId } from "../../utils/format";
 import { getCartItemStockIssue } from "../../utils/stock";
+import { toUserError } from "../../utils/userError";
 
 const PAGE_SIZE = 10;
-
-const toLoadMessage = (err) => {
-  const raw = err?.message || "";
-  if (!raw || raw === "Failed to fetch") {
-    return "Could not reach the server. Please try again later.";
-  }
-  return raw;
-};
 
 const getItemProductId = (item) => getId(item.productId);
 
@@ -59,9 +53,9 @@ const CartPage = () => {
   const [itemCount, setItemCount] = useState(0);
   const [pickupDetails, setPickupDetails] = useState("NU Manila Bulldogs Exchange");
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [formError, setFormError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState(null);
   const knownCartIdsRef = useRef(new Set());
   const hasLoadedRef = useRef(false);
   const skipPageLoadRef = useRef(false);
@@ -107,7 +101,7 @@ const CartPage = () => {
 
   const loadCart = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
-    if (!silent) setLoadError("");
+    if (!silent) setLoadError(false);
     try {
       const [paged, carts] = await Promise.all([
         getCartItemsPagedRequest(token, { page, limit: PAGE_SIZE }),
@@ -129,9 +123,10 @@ const CartPage = () => {
         knownCartIdsRef.current = new Set();
         setTotalPages(1);
         setItemCount(0);
-        setLoadError(toLoadMessage(err));
+        setLoadError(true);
+        showToast(toUserError(err), "error");
       } else {
-        showToast(err.message || toLoadMessage(err), "error");
+        showToast(toUserError(err), "error");
       }
     } finally {
       if (!silent) setLoading(false);
@@ -228,12 +223,11 @@ const CartPage = () => {
         applyCartState(snapshot.full, snapshot.page);
         setSelectedIds(snapshot.selected);
         setProductPending(snapshot.productId, false);
-        showToast(err.message, "error");
+        showToast(toUserError(err), "error");
       });
   };
 
   const mutateFullCart = (updater, productId) => {
-    setFormError("");
     const snapshot = {
       full: fullCartRef.current,
       selected: new Set(selectedIds),
@@ -270,15 +264,20 @@ const CartPage = () => {
     );
   };
 
+  const confirmRemove = () => {
+    if (!removeTarget) return;
+    removeItem(removeTarget);
+    setRemoveTarget(null);
+  };
+
   const checkout = async (event) => {
     event.preventDefault();
-    setFormError("");
     if (!selectedItems.length) {
-      setFormError("Select at least one item to place your order.");
+      showToast("Select at least one item to place your order.", "error");
       return;
     }
     if (selectedBlocked) {
-      setFormError("Uncheck out-of-stock items or adjust quantities before placing your order.");
+      showToast("Uncheck out-of-stock items or adjust quantities before placing your order.", "error");
       return;
     }
     setCheckingOut(true);
@@ -303,7 +302,7 @@ const CartPage = () => {
         "success"
       );
     } catch (err) {
-      setFormError(err.message);
+      showToast(toUserError(err), "error");
     } finally {
       setCheckingOut(false);
     }
@@ -323,7 +322,7 @@ const CartPage = () => {
         <ListEmptyState
           icon={ShoppingCart}
           title={loadError ? "Unable to load cart" : "Cart is empty"}
-          message={loadError || "Your cart is empty."}
+          message={loadError ? "Please try again later." : "Your cart is empty."}
         />
       ) : null}
 
@@ -361,7 +360,7 @@ const CartPage = () => {
                     selectDisabled={!isSelectableItem(item)}
                     pending={pendingIds.has(id)}
                     onQuantityChange={updateQuantity}
-                    onRemove={removeItem}
+                    onRemove={setRemoveTarget}
                   />
                 );
               })}
@@ -381,7 +380,6 @@ const CartPage = () => {
               className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
             >
               <h3 className="text-lg font-semibold text-primary">Order summary</h3>
-              {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
               <p className="text-sm text-zinc-600">
                 Selected: {selectedItems.length}{" "}
                 {selectedItems.length === 1 ? "item" : "items"}
@@ -428,6 +426,16 @@ const CartPage = () => {
           </aside>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(removeTarget)}
+        title="Remove item"
+        message="Remove this item from your cart?"
+        confirmLabel="Yes"
+        cancelLabel="No"
+        onCancel={() => setRemoveTarget(null)}
+        onConfirm={confirmRemove}
+      />
     </section>
   );
 };

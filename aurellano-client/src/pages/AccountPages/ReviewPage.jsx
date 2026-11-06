@@ -10,16 +10,9 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { createReviewRequest, getReviewablePagedRequest } from "../../services/api";
 import { formatDate } from "../../utils/format";
+import { toUserError } from "../../utils/userError";
 
 const PAGE_SIZE = 10;
-
-const toLoadMessage = (err) => {
-  const raw = err?.message || "";
-  if (!raw || raw === "Failed to fetch") {
-    return "Could not reach the server. Please try again later.";
-  }
-  return raw;
-};
 
 const ReviewPage = () => {
   const { token } = useAuth();
@@ -41,8 +34,7 @@ const ReviewPage = () => {
     reviewComment: "",
   });
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [formError, setFormError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const updateParams = (updates) => {
@@ -82,7 +74,7 @@ const ReviewPage = () => {
 
   const load = async () => {
     setLoading(true);
-    setLoadError("");
+    setLoadError(false);
     try {
       const query = { page, limit: PAGE_SIZE };
       if (search) query.search = search;
@@ -94,7 +86,8 @@ const ReviewPage = () => {
       setEntries([]);
       setTotalPages(1);
       setTotalEntries(0);
-      setLoadError(toLoadMessage(err));
+      setLoadError(true);
+      showToast(toUserError(err), "error");
     } finally {
       setLoading(false);
     }
@@ -112,11 +105,9 @@ const ReviewPage = () => {
   const clearSelection = () => {
     setActiveEntry(null);
     setForm({ productId: "", reviewRating: 5, reviewComment: "" });
-    setFormError("");
   };
 
   const selectEntry = (entry) => {
-    setFormError("");
     setActiveEntry(entry);
     if (!entry.review) {
       setForm({
@@ -141,9 +132,8 @@ const ReviewPage = () => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    setFormError("");
     if (!form.productId) {
-      setFormError("Select a delivered product to review.");
+      showToast("Select a delivered product to review.", "error");
       return;
     }
     setSaving(true);
@@ -160,7 +150,7 @@ const ReviewPage = () => {
       showToast("Review saved.", "success");
       await load();
     } catch (err) {
-      setFormError(err.message);
+      showToast(toUserError(err), "error");
     } finally {
       setSaving(false);
     }
@@ -183,7 +173,11 @@ const ReviewPage = () => {
       {loading ? <ListSkeleton variant="review" count={4} label="Loading reviews" /> : null}
 
       {!loading && loadError ? (
-        <ListEmptyState icon={Star} title="Unable to load reviews" message={loadError} />
+        <ListEmptyState
+          icon={Star}
+          title="Unable to load reviews"
+          message="Please try again later."
+        />
       ) : null}
 
       {!loading && !loadError && !totalEntries && !search ? (
@@ -285,7 +279,6 @@ const ReviewPage = () => {
                     </div>
                   ) : (
                     <form onSubmit={onSubmit} className="space-y-4 border-t border-zinc-100 pt-4">
-                      {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
                       <p className="text-sm text-zinc-600">
                         Share a rating and optional comment for this product.
                       </p>

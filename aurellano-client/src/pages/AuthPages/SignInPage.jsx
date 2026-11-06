@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Button from "../../components/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
+import { toUserError } from "../../utils/userError";
 
 const inputClasses =
   "mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:bg-zinc-50";
@@ -21,7 +22,6 @@ const SignInPage = () => {
     password: "",
     rememberMe: false,
   });
-  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -38,7 +38,6 @@ const SignInPage = () => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    setFormError("");
     setSaving(true);
     try {
       const user = await login(form);
@@ -47,7 +46,7 @@ const SignInPage = () => {
       const from = location.state?.from?.pathname;
       navigate(from || fallback, { replace: true });
     } catch (err) {
-      setFormError(err.message);
+      showToast(toUserError(err), "error");
     } finally {
       setSaving(false);
     }
@@ -69,7 +68,6 @@ const SignInPage = () => {
         details.
       </p>
       <form className="mt-8 space-y-5" onSubmit={onSubmit}>
-        {formError ? <p className="text-sm text-red-300">{formError}</p> : null}
         <div>
           <label htmlFor="signin-email" className="text-sm font-medium text-secondary">
             Email Address

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import {
   LayoutDashboard,
   LogOut,
@@ -10,7 +10,7 @@ import {
   User,
   ClipboardList,
 } from "lucide-react";
-import Button from "../components/Button";
+import LogoutButton from "../components/LogoutButton";
 import { useAuth } from "../context/AuthContext";
 import logo from "../assets/img/nubdexchange_logo.png";
 
@@ -33,14 +33,8 @@ const linkClass = (collapsed) =>
     ].join(" ");
 
 const SupplierLayout = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-
-  const onLogout = async () => {
-    await logout();
-    navigate("/");
-  };
 
   return (
     <div className="flex min-h-screen bg-neutral2 text-zinc-900">
@@ -98,12 +92,12 @@ const SupplierLayout = () => {
             <p className="text-sm font-semibold text-secondary">
               {user?.firstName} {user?.lastName}
             </p>
-            <Button type="button" variant="custom2" onClick={onLogout}>
+            <LogoutButton variant="custom2">
               <span className="inline-flex items-center gap-2">
                 <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
                 Log Out
               </span>
-            </Button>
+            </LogoutButton>
           </div>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">

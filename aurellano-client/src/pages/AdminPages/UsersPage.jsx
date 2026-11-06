@@ -19,6 +19,7 @@ import {
   updateUserRequest,
 } from "../../services/api";
 import { formatDate } from "../../utils/format";
+import { toUserError } from "../../utils/userError";
 
 const PAGE_SIZE = 10;
 
@@ -42,7 +43,6 @@ const AdminUsersPage = () => {
   const { showToast } = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -66,7 +66,7 @@ const AdminUsersPage = () => {
       setUsers(data.items);
       setTotalPages(data.totalPages);
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
       setUsers([]);
       setTotalPages(1);
     } finally {
@@ -87,7 +87,6 @@ const AdminUsersPage = () => {
     setEditing(null);
     setForm(emptyForm);
     setModalOpen(true);
-    setFormError("");
   };
 
   const openEdit = (user) => {
@@ -104,7 +103,6 @@ const AdminUsersPage = () => {
       confirmPassword: "",
     });
     setModalOpen(true);
-    setFormError("");
   };
 
   const closeModal = () => {
@@ -128,26 +126,25 @@ const AdminUsersPage = () => {
 
     if (!editing) {
       if (newPassword.length < 6) {
-        setFormError("Password must be at least 6 characters.");
+        showToast("Password must be at least 6 characters.", "error");
         return;
       }
       if (newPassword !== confirmPassword) {
-        setFormError("Password and confirm password do not match.");
+        showToast("Password and confirm password do not match.", "error");
         return;
       }
     } else if (newPassword || confirmPassword) {
       if (newPassword.length < 6) {
-        setFormError("New password must be at least 6 characters.");
+        showToast("New password must be at least 6 characters.", "error");
         return;
       }
       if (newPassword !== confirmPassword) {
-        setFormError("New password and confirm password do not match.");
+        showToast("New password and confirm password do not match.", "error");
         return;
       }
     }
 
     setSaving(true);
-    setFormError("");
     try {
       if (!editing) {
         const payload = {
@@ -187,7 +184,7 @@ const AdminUsersPage = () => {
       closeModal();
       await load();
     } catch (err) {
-      setFormError(err.message);
+      showToast(toUserError(err), "error");
     } finally {
       setSaving(false);
     }
@@ -210,7 +207,7 @@ const AdminUsersPage = () => {
       setDeleteTarget(null);
       await load();
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(toUserError(err), "error");
     } finally {
       setDeleting(false);
     }
@@ -316,7 +313,6 @@ const AdminUsersPage = () => {
         onClose={closeModal}
       >
         <form onSubmit={onSubmit} className="space-y-4">
-          {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
           <label className="block text-sm">
             First name
             <input

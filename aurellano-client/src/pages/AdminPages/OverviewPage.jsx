@@ -9,6 +9,7 @@ import {
   getSupplierReviewsRequest,
   getUsersRequest,
 } from "../../services/api";
+import { toUserError } from "../../utils/userError";
 
 const OverviewPage = () => {
   const { token, user } = useAuth();
@@ -57,7 +58,7 @@ const OverviewPage = () => {
           users: users.length,
         });
       } catch (err) {
-        if (!cancelled) showToast(err.message, "error");
+        if (!cancelled) showToast(toUserError(err), "error");
       } finally {
         if (!cancelled) setLoading(false);
       }

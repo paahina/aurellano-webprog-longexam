@@ -5,6 +5,7 @@ import ProductImage from "../../components/ProductImage";
 import { useToast } from "../../context/ToastContext";
 import { getProductsRequest } from "../../services/api";
 import { formatPeso } from "../../utils/format";
+import { toUserError } from "../../utils/userError";
 
 function ProductPage() {
   const { name } = useParams();
@@ -26,13 +27,12 @@ function ProductPage() {
           (item) => item.productSlug === name || item.productName === name
         );
         setProduct(match || null);
-        if (!match) setLoadError("Product not found");
+        if (!match)           setLoadError("This product could not be found.");
       } catch (err) {
         if (!cancelled) {
           setProduct(null);
-          const message = err.message || "Could not load product. Is the server running?";
-          setLoadError(message);
-          showToast(message, "error");
+          setLoadError("Please try again later.");
+          showToast(toUserError(err), "error");
         }
       } finally {
         if (!cancelled) setLoading(false);
